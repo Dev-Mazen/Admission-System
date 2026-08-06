@@ -23,14 +23,21 @@ public class AdminController : ControllerBase
     {
         new ExportColumnDefinitionDTO { Key = "StudName", Label = "Student Name", Description = "Full name of the applicant" },
         new ExportColumnDefinitionDTO { Key = "SocialID", Label = "National ID", Description = "National identification number" },
-        new ExportColumnDefinitionDTO { Key = "Prep_Scores", Label = "Prep Scores", Description = "Math & English prep scores" },
+        new ExportColumnDefinitionDTO { Key = "MathPrepScore", Label = "Math Prep Score", Description = "Preparatory Math score" },
+        new ExportColumnDefinitionDTO { Key = "EnglishPrepScore", Label = "English Prep Score", Description = "Preparatory English score" },
         new ExportColumnDefinitionDTO { Key = "Prep_Final%", Label = "Prep Final %", Description = "Final year percentage" },
         new ExportColumnDefinitionDTO { Key = "MinistryExam%", Label = "Ministry Exam %", Description = "Ministry exam percentage" },
-        new ExportColumnDefinitionDTO { Key = "InterviewersScores", Label = "Interviewers Scores", Description = "Scores given by interviewers" },
+        new ExportColumnDefinitionDTO { Key = "Interviewer1Score", Label = "Interviewer 1 Score", Description = "Score from the first interviewer" },
+        new ExportColumnDefinitionDTO { Key = "Interviewer2Score", Label = "Interviewer 2 Score", Description = "Score from the second interviewer" },
+        new ExportColumnDefinitionDTO { Key = "Interviewer3Score", Label = "Interviewer 3 Score", Description = "Score from the third interviewer" },
         new ExportColumnDefinitionDTO { Key = "Interviewers_SUM_Scores", Label = "Interviewers Sum", Description = "Sum of interviewer scores" },
         new ExportColumnDefinitionDTO { Key = "Interviewers_Count", Label = "Interviewers Count", Description = "Number of interviewers" },
         new ExportColumnDefinitionDTO { Key = "Interviewers_AVG_Scores%", Label = "Interview Average %", Description = "Average interviewer score (percentage)" },
-        new ExportColumnDefinitionDTO { Key = "SchoolExamSectionScores", Label = "Exam Section Scores", Description = "Detailed school exam section scores" },
+        new ExportColumnDefinitionDTO { Key = "ExamArabicScore", Label = "Arabic Exam Score", Description = "School exam Arabic score" },
+        new ExportColumnDefinitionDTO { Key = "ExamEnglishScore", Label = "English Exam Score", Description = "School exam English score" },
+        new ExportColumnDefinitionDTO { Key = "ExamMathScore", Label = "Math Exam Score", Description = "School exam Math score" },
+        new ExportColumnDefinitionDTO { Key = "ExamSoftwareScore", Label = "Software Exam Score", Description = "School exam Software score" },
+        new ExportColumnDefinitionDTO { Key = "ExamIQScore", Label = "IQ Exam Score", Description = "School exam IQ score; blank for the pre-IQ cohort" },
         new ExportColumnDefinitionDTO { Key = "SchoolExamSection_SUM_Scores", Label = "Exam Section Sum", Description = "Sum of school exam section scores" },
         new ExportColumnDefinitionDTO { Key = "SchoolExamSection_Count", Label = "Exam Section Count", Description = "Number of school exam sections" },
         new ExportColumnDefinitionDTO { Key = "SchoolExamSection_Scores_AVG%", Label = "Exam Section Avg %", Description = "Average school exam section percentage" },
@@ -294,14 +301,21 @@ public class AdminController : ControllerBase
             {
                 ["StudName"] = data => data.Student.FullName ?? "",
                 ["SocialID"] = data => data.Student.NationalId ?? "",
-                ["Prep_Scores"] = data => data.PrepScores,
+                ["MathPrepScore"] = data => data.MathPrepScore,
+                ["EnglishPrepScore"] = data => data.EnglishPrepScore,
                 ["Prep_Final%"] = data => data.PrepFinalPercent,
                 ["MinistryExam%"] = data => data.MinistryExamPercent,
-                ["InterviewersScores"] = data => data.InterviewersScores,
+                ["Interviewer1Score"] = data => data.Interviewer1Score,
+                ["Interviewer2Score"] = data => data.Interviewer2Score,
+                ["Interviewer3Score"] = data => data.Interviewer3Score,
                 ["Interviewers_SUM_Scores"] = data => data.InterviewersSumScores,
                 ["Interviewers_Count"] = data => data.InterviewersCount,
                 ["Interviewers_AVG_Scores%"] = data => data.InterviewersAvgScoresPercent,
-                ["SchoolExamSectionScores"] = data => data.SchoolExamSectionScores,
+                ["ExamArabicScore"] = data => data.ExamArabicScore,
+                ["ExamEnglishScore"] = data => data.ExamEnglishScore,
+                ["ExamMathScore"] = data => data.ExamMathScore,
+                ["ExamSoftwareScore"] = data => data.ExamSoftwareScore,
+                ["ExamIQScore"] = data => data.ExamIqScore,
                 ["SchoolExamSection_SUM_Scores"] = data => data.SchoolExamSectionSumScores,
                 ["SchoolExamSection_Count"] = data => data.SchoolExamSectionCount,
                 ["SchoolExamSection_Scores_AVG%"] = data => data.SchoolExamSectionScoresAvgPercent,
@@ -330,6 +344,7 @@ public class AdminController : ControllerBase
                 var studentId = (long)student.Id;
                 var interviewScores = await _db.InterviewScores
                     .Where(i => i.AccountId == studentId)
+                    .OrderBy(i => i.Id)
                     .Select(i => new
                     {
                         Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Unknown Admin",
@@ -339,7 +354,9 @@ public class AdminController : ControllerBase
 
                 // Calculate interview statistics
                 var interviewScoresList = interviewScores.Select(i => i.Score).ToList();
-                var interviewersScores = string.Join(", ", interviewScoresList);
+                var interviewer1Score = interviewScoresList.Count > 0 ? interviewScoresList[0] : (double?)null;
+                var interviewer2Score = interviewScoresList.Count > 1 ? interviewScoresList[1] : (double?)null;
+                var interviewer3Score = interviewScoresList.Count > 2 ? interviewScoresList[2] : (double?)null;
                 var interviewersSumScores = interviewScoresList.Sum();
                 var interviewersCount = interviewScoresList.Count;
                 var interviewersAvgScoresPercent = interviewersCount > 0 ?
@@ -356,29 +373,44 @@ public class AdminController : ControllerBase
                 var examEnglishScore = (double)(student.ExamEnglishScore ?? 0);
                 var examMathScore = (double)(student.ExamMathScore ?? 0);
                 var examSoftwareScore = (double)(student.ExamSoftwareScore ?? 0);
+                var hasIqScore = student.ExamIqScore != null;
+                var examIqScore = hasIqScore ? (double)student.ExamIqScore : 0.0;
 
-                var prepScores = $"MathPrep={mathScore}|EnglishPrep={englishScore}";
                 var prepFinalPercent = Math.Round(finalYearScore * 100.0 / 280.0, 2);
-                var schoolExamSectionScores = $"[ExamArabicScore]={examArabicScore}|[ExamEnglishScore]={examEnglishScore}|[ExamMathScore]={examMathScore}|[ExamSoftwareScore]={examSoftwareScore}|";
-                var schoolExamSectionSumScores = examArabicScore + examEnglishScore + examMathScore + examSoftwareScore;
-                var schoolExamSectionCount = 4;
-                var schoolExamSectionScoresAvgPercent = Math.Round(schoolExamSectionSumScores * 100.0 / 60.0, 2);
+
+                var schoolExamSectionSumScores = examArabicScore +
+                                                 examEnglishScore +
+                                                 examMathScore +
+                                                 examSoftwareScore +
+                                                 examIqScore;
+                var schoolExamSectionCount = hasIqScore ? 5 : 4;
+                var schoolExamMaximum = (double)student.ExamMaxScore;
+                var schoolExamSectionScoresAvgPercent = Math.Round(
+                    schoolExamSectionSumScores * 100.0 / schoolExamMaximum,
+                    2);
 
                 // Calculate result admission percentages
                 var resultAdmission1Percent = Math.Round((interviewersAvgScoresPercent + schoolExamSectionScoresAvgPercent) / 2.0, 2);
-                var resultAdmission2Percent = Math.Round((prepFinalPercent + ministryExamPercent + interviewersAvgScoresPercent + schoolExamSectionScoresAvgPercent) / 4.0, 2);
+                var resultAdmission2Percent = (double)student.TotalPercentage;
 
                 processedStudents.Add(new
                 {
                     Student = student,
-                    InterviewersScores = interviewersScores,
+                    Interviewer1Score = interviewer1Score,
+                    Interviewer2Score = interviewer2Score,
+                    Interviewer3Score = interviewer3Score,
                     InterviewersSumScores = interviewersSumScores,
                     InterviewersCount = interviewersCount,
                     InterviewersAvgScoresPercent = interviewersAvgScoresPercent,
-                    PrepScores = prepScores,
+                    MathPrepScore = mathScore,
+                    EnglishPrepScore = englishScore,
                     PrepFinalPercent = prepFinalPercent,
                     MinistryExamPercent = ministryExamPercent,
-                    SchoolExamSectionScores = schoolExamSectionScores,
+                    ExamArabicScore = examArabicScore,
+                    ExamEnglishScore = examEnglishScore,
+                    ExamMathScore = examMathScore,
+                    ExamSoftwareScore = examSoftwareScore,
+                    ExamIqScore = hasIqScore ? examIqScore : (double?)null,
                     SchoolExamSectionSumScores = schoolExamSectionSumScores,
                     SchoolExamSectionCount = schoolExamSectionCount,
                     SchoolExamSectionScoresAvgPercent = schoolExamSectionScoresAvgPercent,
@@ -386,6 +418,11 @@ public class AdminController : ControllerBase
                     ResultAdmission2Percent = resultAdmission2Percent
                 });
             }
+
+            // Highest Result Admission 1 percentage always appears first.
+            processedStudents = processedStudents
+                .OrderByDescending(data => (double)data.ResultAdmission1Percent)
+                .ToList();
 
             // Fill Excel cells
             int row = 2;

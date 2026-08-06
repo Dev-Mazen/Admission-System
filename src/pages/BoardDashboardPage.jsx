@@ -29,6 +29,12 @@ import {
   buildDashboardStats,
 } from "../utils/dashboardAnalytics";
 import {
+  getExamAdmissionContribution,
+  getExamMaximum,
+  getExamTotal,
+  hasIqExamScore,
+} from "../utils/examScoring";
+import {
   PieChart,
   Pie,
   Cell,
@@ -133,6 +139,13 @@ const BoardDashboardPage = () => {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!successMessage) return;
+
+    const timeoutId = window.setTimeout(() => setSuccessMessage(null), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [successMessage]);
 
   // Authentication is handled by SessionManager component
 
@@ -273,12 +286,7 @@ const BoardDashboardPage = () => {
         return student.totalPercentage;
       }
 
-      // Fallback calculation if backend data is not available
-      const examTotal =
-        (student.examMathScore || 0) +
-        (student.examEnglishScore || 0) +
-        (student.examArabicScore || 0) +
-        (student.examSoftwareScore || 0);
+      const examContribution = getExamAdmissionContribution(student);
 
       // Calculate interview contribution: each score divided by 3
       let interviewContribution = 0;
@@ -291,19 +299,13 @@ const BoardDashboardPage = () => {
         );
       }
 
-      const totalScore = examTotal + interviewContribution;
+      const totalScore = examContribution + interviewContribution;
       return Math.round(totalScore * 100) / 100; // Round to 2 decimal places
     } else {
-      // For regular admin, calculate based on exam scores + their interview score
-      const examTotal =
-        (student.examMathScore || 0) +
-        (student.examEnglishScore || 0) +
-        (student.examArabicScore || 0) +
-        (student.examSoftwareScore || 0);
+      const examContribution = getExamAdmissionContribution(student);
       const interviewTotal = student.interviewScore || 0;
 
-      // Calculate total percentage based on exam and interview scores
-      const totalScore = examTotal + interviewTotal;
+      const totalScore = examContribution + interviewTotal;
       return Math.round(totalScore);
     }
   };
@@ -323,10 +325,6 @@ const BoardDashboardPage = () => {
       // Set success message
       setSuccessMessage(`Student status updated successfully to ${status}`);
 
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
     } catch (err) {
       setError(err.response?.data || "Failed to update student status");
     } finally {
@@ -946,14 +944,24 @@ const BoardDashboardPage = () => {
                             {/* exam scores Data, display exam scores in a table, second column*/}
                             <TableCell>
                               <div className="space-y-1 text-sm">
-                                <div>Arabic: {student.examArabicScore}/15</div>
-                                <div>English: {student.examEnglishScore}/15</div>
-                                <div>Math: {student.examMathScore}/15</div>
+                                <div>Arabic: {student.examArabicScore}/{student.examArabicMaxScore ?? 15}</div>
                                 <div>
-                                  Software: {student.examSoftwareScore}/15
+                                  English: {student.examEnglishScore}/
+                                  {student.examEnglishMaxScore ?? (hasIqExamScore(student) ? 30 : 15)}
                                 </div>
+                                <div>
+                                  Math: {student.examMathScore}/
+                                  {student.examMathMaxScore ?? (hasIqExamScore(student) ? 30 : 15)}
+                                </div>
+                                <div>
+                                  Software: {student.examSoftwareScore}/{student.examSoftwareMaxScore ?? 15}
+                                </div>
+                                {hasIqExamScore(student) && (
+                                  <div>IQ: {student.examIqScore}/{student.examIqMaxScore ?? 10}</div>
+                                )}
                                 <div className="font-bold text-blue-600">
-                                  Total: {student.examTotal}/60
+                                  Total: {getExamTotal(student)}/
+                                  {getExamMaximum(student)}
                                 </div>
                               </div>
                             </TableCell>
@@ -1433,7 +1441,7 @@ const BoardDashboardPage = () => {
                             Software
                           </p>
                           <p className="text-2xl font-bold text-rose-900">
-                            {averages.examSoftwareAverage.toFixed(2)}
+                            {averages.examSoftwareAverage.toFixed(2)}%
                           </p>
                         </div>
                         <div className="h-10 w-10 rounded-full bg-white text-rose-600 flex items-center justify-center shadow-sm">
@@ -1458,7 +1466,7 @@ const BoardDashboardPage = () => {
                         <div>
                           <p className="text-xs font-semibold text-sky-700">English</p>
                           <p className="text-2xl font-bold text-sky-900">
-                            {averages.examEnglishAverage.toFixed(2)}
+                            {averages.examEnglishAverage.toFixed(2)}%
                           </p>
                         </div>
                         <div className="h-10 w-10 rounded-full bg-white text-sky-600 flex items-center justify-center shadow-sm">
@@ -1489,7 +1497,7 @@ const BoardDashboardPage = () => {
                         <div>
                           <p className="text-xs font-semibold text-teal-700">Arabic</p>
                           <p className="text-2xl font-bold text-teal-900">
-                            {averages.examArabicAverage.toFixed(2)}
+                            {averages.examArabicAverage.toFixed(2)}%
                           </p>
                         </div>
                         <div className="h-10 w-10 rounded-full bg-white text-teal-600 flex items-center justify-center shadow-sm">
@@ -1514,7 +1522,7 @@ const BoardDashboardPage = () => {
                         <div>
                           <p className="text-xs font-semibold text-orange-700">Math</p>
                           <p className="text-2xl font-bold text-orange-900">
-                            {averages.examMathAverage.toFixed(2)}
+                            {averages.examMathAverage.toFixed(2)}%
                           </p>
                         </div>
                         <div className="h-10 w-10 rounded-full bg-white text-orange-600 flex items-center justify-center shadow-sm">
@@ -1539,6 +1547,12 @@ const BoardDashboardPage = () => {
                           </svg>
                         </div>
                       </div>
+                    </div>
+                    <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+                      <p className="text-xs font-semibold text-indigo-700">IQ</p>
+                      <p className="text-2xl font-bold text-indigo-900">
+                        {averages.examIqAverage.toFixed(2)}%
+                      </p>
                     </div>
                   </div>
                 </CardContent>

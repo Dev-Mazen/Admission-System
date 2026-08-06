@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolAdmission.Models;
@@ -44,4 +44,6 @@ public partial class Account
     public virtual ICollection<StudentExamAnswer> StudentExamAnswers { get; set; } = new List<StudentExamAnswer>();
 
     public virtual StudentExamResult? StudentExamResult { get; set; }
+
+
 }

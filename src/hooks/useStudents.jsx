@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { adminAPI } from "../utils/api";
+import { getExamAdmissionContribution } from "../utils/examScoring";
 
 export const useStudents = () => {
   const [students, setStudents] = useState([]);
@@ -82,16 +83,10 @@ export const useStudents = () => {
       // For super admin, use the InterviewPercentage from backend
       return Math.round(student.interviewPercentage || 0);
     } else {
-      // For regular admin, calculate based on exam scores + their interview score
-      const examTotal =
-        (student.examMathScore || 0) +
-        (student.examEnglishScore || 0) +
-        (student.examArabicScore || 0) +
-        (student.examSoftwareScore || 0);
+      const examContribution = getExamAdmissionContribution(student);
       const interviewTotal = student.interviewScore || 0;
 
-      // Calculate total percentage based on exam and interview scores
-      const totalScore = examTotal + interviewTotal;
+      const totalScore = examContribution + interviewTotal;
       return Math.round(totalScore);
     }
   };

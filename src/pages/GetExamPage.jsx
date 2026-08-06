@@ -12,6 +12,10 @@ import {
 } from "../components/ui/Card";
 import { RadioGroup, RadioGroupItem } from "../components/ui/RadioGroup";
 import { examAPI } from "../utils/api";
+import {
+  resolveExamRemainingSeconds,
+  shouldAutoSubmitFromTimer,
+} from "../utils/examTimer";
 
 const GetExamPage = () => {
   const navigate = useNavigate();
@@ -21,7 +25,7 @@ const GetExamPage = () => {
   const [currentSection, setCurrentSection] = useState(0);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(60 * 60); // 1 hour in seconds
+  const [timeLeft, setTimeLeft] = useState(0);
   const [savedPosition, setSavedPosition] = useState(null); // Save position before validation
   const [showExitWarning, setShowExitWarning] = useState(false);
   const [showFullScreenWarning, setShowFullScreenWarning] = useState(false);
@@ -33,6 +37,9 @@ const GetExamPage = () => {
 
   // Use ref to store current answers for timer access
   const answersRef = useRef({});
+  const autoSubmitTriggeredRef = useRef(false);
+  const timerObservedPositiveRef = useRef(false);
+  const autoSubmitHandlerRef = useRef(null);
 
   // Calculate progress
   const progress = examData
@@ -85,6 +92,8 @@ const GetExamPage = () => {
       );
       const sections = sectionsResponse.data.sections;
       const schoolType = sectionsResponse.data.schoolType;
+      const examDurationMinutes =
+        Number(sectionsResponse.data.examDurationMinutes) || 60;
 
       // Get questions for each section with school type logic
       const questionsData = {};
@@ -98,13 +107,26 @@ const GetExamPage = () => {
         questionsData[section.sectionName] = questionsResponse.data.questions;
       }
 
-      setExamData({ sections, questionsData, schoolType });
+      const remainingSeconds = resolveExamRemainingSeconds(
+        sectionsResponse.data,
+        examDurationMinutes
+      );
 
-      // Start timer
-      const examStartTime = Date.now();
-      localStorage.setItem("examStartTime", examStartTime.toString());
-    } catch {
-      setError("Failed to load exam data. Please refresh the page.");
+      autoSubmitTriggeredRef.current = false;
+      timerObservedPositiveRef.current = remainingSeconds > 0;
+      setTimeLeft(remainingSeconds);
+      setExamData({
+        sections,
+        questionsData,
+        schoolType,
+        examDurationMinutes,
+      });
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message ||
+          requestError.response?.data ||
+          "Failed to load exam data. Please refresh the page."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -120,8 +142,15 @@ const GetExamPage = () => {
 
         if (newTime <= 0) {
           clearInterval(timer);
-          // Auto-submit exam
-          handleAutoSubmit();
+          // Never submit from an initial/malformed zero. Auto-submit is allowed
+          // only when a positive countdown on this page actually reaches zero.
+          if (
+            shouldAutoSubmitFromTimer(prev, newTime) &&
+            !autoSubmitTriggeredRef.current
+          ) {
+            autoSubmitTriggeredRef.current = true;
+            window.setTimeout(() => autoSubmitHandlerRef.current?.(), 0);
+          }
           return 0;
         }
 
@@ -130,7 +159,64 @@ const GetExamPage = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [examData]); // Removed answers dependency to prevent timer recreation
+  }, [examData]);
+
+  // Browser timers may pause when a lab sleeps or a tab is throttled. Reconcile
+  // against SQL-backed server time regularly and whenever the student returns.
+  useEffect(() => {
+    if (!examData) return;
+
+    let isActive = true;
+    const syncWithServer = async () => {
+      try {
+        const nationalId = localStorage.getItem("studentNationalId");
+        if (!nationalId) return;
+
+        const response = await examAPI.getExamTiming(nationalId);
+        if (!isActive) return;
+
+        const remainingSeconds = resolveExamRemainingSeconds(
+          response.data,
+          examData.examDurationMinutes
+        );
+
+        if (remainingSeconds > 0) {
+          timerObservedPositiveRef.current = true;
+          autoSubmitTriggeredRef.current = false;
+          setTimeLeft(remainingSeconds);
+          return;
+        }
+
+        setTimeLeft(0);
+        if (
+          timerObservedPositiveRef.current &&
+          !autoSubmitTriggeredRef.current
+        ) {
+          autoSubmitTriggeredRef.current = true;
+          window.setTimeout(() => autoSubmitHandlerRef.current?.(), 0);
+        }
+      } catch {
+        // Keep the local countdown running during a temporary network interruption.
+      }
+    };
+
+    const handleFocus = () => syncWithServer();
+    const handleVisibilityChange = () => {
+      if (!document.hidden) syncWithServer();
+    };
+
+    syncWithServer();
+    const syncInterval = window.setInterval(syncWithServer, 15000);
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(syncInterval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [examData]);
 
   // Security: Prevent exit, fullscreen, etc.
   useEffect(() => {
@@ -346,12 +432,13 @@ const GetExamPage = () => {
       // Clear exam data
       localStorage.removeItem("examToken");
       localStorage.removeItem("examStartTime");
+      localStorage.removeItem("examExtensionSeconds");
 
       // Store score data for completion page
       if (response.data && response.data.totalScore !== undefined) {
         localStorage.setItem("examScore", JSON.stringify({
           totalScore: response.data.totalScore,
-          maxScore: response.data.maxScore || 60
+          maxScore: response.data.maxScore ?? 100
         }));
       }
 
@@ -372,7 +459,11 @@ const GetExamPage = () => {
       const nationalId = localStorage.getItem("studentNationalId");
       const currentAnswers = answersRef.current;
 
-      // Debug logs removed
+      // An empty attempt must never become an irreversible zero-score result.
+      if (Object.keys(currentAnswers).length === 0) {
+        setShowCoordinatorExtension(true);
+        return;
+      }
 
       // Submit answers
       const response = await examAPI.submitAnswers({
@@ -388,12 +479,13 @@ const GetExamPage = () => {
       // Clear exam data
       localStorage.removeItem("examToken");
       localStorage.removeItem("examStartTime");
+      localStorage.removeItem("examExtensionSeconds");
 
       // Store score data for completion page
       if (response.data && response.data.totalScore !== undefined) {
         localStorage.setItem("examScore", JSON.stringify({
           totalScore: response.data.totalScore,
-          maxScore: response.data.maxScore || 60
+          maxScore: response.data.maxScore ?? 100
         }));
       }
 
@@ -406,6 +498,10 @@ const GetExamPage = () => {
     }
   };
 
+  useEffect(() => {
+    autoSubmitHandlerRef.current = handleAutoSubmit;
+  });
+
   const handleCoordinatorExtension = async () => {
     try {
       // Validate extension minutes
@@ -415,15 +511,22 @@ const GetExamPage = () => {
       }
 
       // Validate coordinator credentials and get extension
-      await examAPI.requestTimeExtension({
+      const extensionResponse = await examAPI.requestTimeExtension({
         nationalId: localStorage.getItem("studentNationalId"),
         coordinatorEmail,
         coordinatorPassword,
         extensionMinutes,
       });
 
-      // Add extension time
-      setTimeLeft((prev) => prev + extensionMinutes * 60);
+      const serverRemainingSeconds = Number(
+        extensionResponse.data.remainingSeconds
+      );
+      if (Number.isFinite(serverRemainingSeconds) && serverRemainingSeconds > 0) {
+        autoSubmitTriggeredRef.current = false;
+        setTimeLeft(Math.floor(serverRemainingSeconds));
+      } else {
+        setTimeLeft((current) => current + extensionMinutes * 60);
+      }
       setShowCoordinatorExtension(false);
       setCoordinatorEmail("");
       setCoordinatorPassword("");
@@ -904,8 +1007,7 @@ const GetExamPage = () => {
               <h3 className="text-xl font-bold text-gray-900">Exit Exam?</h3>
             </div>
             <p className="text-gray-600 mb-6">
-              Are you sure you want to exit the exam? Your current progress will
-              be submitted and the exam will be finalized.
+              هل أنت متأكد من رغبتك في الخروج من الاختبار؟ سيتم تسليم إجاباتك الحالية وإنهاء الاختبار.
             </p>
             <div className="flex space-x-3">
               <Button
@@ -914,7 +1016,7 @@ const GetExamPage = () => {
                 className="flex-1"
                 disabled={isSubmitting}
               >
-                Cancel
+               العودة
               </Button>
               <Button
                 onClick={() => {
@@ -924,7 +1026,7 @@ const GetExamPage = () => {
                 className="flex-1 bg-red-600 hover:bg-red-700"
                 disabled={isSubmitting}
               >
-                Exit Exam
+               إنهاء الاختبار وتسليم الإجابات
               </Button>
             </div>
           </div>

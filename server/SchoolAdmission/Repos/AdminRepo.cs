@@ -4,6 +4,7 @@ using SchoolAdmission.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using SchoolAdmission.Repos.IRepos;
+using SchoolAdmission.Services;
 
 namespace SchoolAdmission.Repos;
 
@@ -11,11 +12,13 @@ public class AdminRepo : IAdminRepo
 {
     private readonly SchoolAdmissionDbContext _db;
     private readonly IAuthRepo _authRepo;
+    private readonly AdmissionSettingsService _settingsService;
 
-    public AdminRepo(SchoolAdmissionDbContext db, IAuthRepo authRepo)
+    public AdminRepo(SchoolAdmissionDbContext db, IAuthRepo authRepo, AdmissionSettingsService settingsService)
     {
         _db = db;
         _authRepo = authRepo;
+        _settingsService = settingsService;
     }
 
     public async Task<List<dynamic>> GetStudentsForAdminAsync(string adminEmail)
@@ -78,8 +81,12 @@ public class AdminRepo : IAdminRepo
                 .ToListAsync();
 
             var examTotal = await GetExamTotalAsync(examResults);
+            var settings = await _settingsService.GetForStudentAsync(s.Id, examResults);
             var interviewScoreValue = (double)(interviewScore?.Score ?? 0m);
-            var totalWithInterview = examTotal + interviewScoreValue;
+            var schoolExamContribution = settings.SchoolExamWeight > 0
+                ? AdmissionSettingsService.GetExamPercentage(examResults, settings) * (double)settings.SchoolExamWeight / 100d
+                : 0;
+            var totalWithInterview = schoolExamContribution + interviewScoreValue;
 
             result.Add(new
             {
@@ -100,6 +107,14 @@ public class AdminRepo : IAdminRepo
                 ExamEnglishScore = examResults?.ExamEnglishScore ?? 0,
                 ExamArabicScore = examResults?.ExamArabicScore ?? 0,
                 ExamSoftwareScore = examResults?.ExamSoftwareScore ?? 0,
+                ExamIqScore = examResults?.ExamIqScore,
+                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(settings),
+                ExamPercentage = AdmissionSettingsService.GetExamPercentage(examResults, settings),
+                ExamArabicMaxScore = settings.ArabicWeight,
+                ExamEnglishMaxScore = settings.EnglishWeight,
+                ExamMathMaxScore = settings.MathWeight,
+                ExamSoftwareMaxScore = settings.SoftwareWeight,
+                ExamIqMaxScore = settings.IqWeight,
                 InterviewScore = interviewScoreValue,
                 InterviewScores = interviewScores,
                 InterviewPercentage = totalWithInterview,
@@ -145,11 +160,18 @@ public class AdminRepo : IAdminRepo
             var examResults = await _db.StudentExamResults
                 .FirstOrDefaultAsync(ser => ser.AccountId == s.Id);
 
-            // Calculate average interview score safely
-            double averageInterviewScore = 0;
-
             var examTotal = await GetExamTotalAsync(examResults);
-            var interviewPercentage = examTotal + averageInterviewScore;
+            var settings = await _settingsService.GetForStudentAsync(s.Id, examResults);
+            var interviewScores = await _db.InterviewScores
+                .AsNoTracking()
+                .Where(score => score.AccountId == s.Id)
+                .Select(score => score.Score)
+                .ToListAsync();
+            var totalPercentage = AdmissionSettingsService.GetTotalPercentage(
+                examResults,
+                admissionProfile,
+                interviewScores,
+                settings);
 
             result.Add(new
             {
@@ -172,9 +194,17 @@ public class AdminRepo : IAdminRepo
                 ExamEnglishScore = examResults?.ExamEnglishScore ?? 0,
                 ExamSoftwareScore = examResults?.ExamSoftwareScore ?? 0,
                 ExamArabicScore = examResults?.ExamArabicScore ?? 0,
+                ExamIqScore = examResults?.ExamIqScore,
+                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(settings),
+                ExamPercentage = AdmissionSettingsService.GetExamPercentage(examResults, settings),
+                ExamArabicMaxScore = settings.ArabicWeight,
+                ExamEnglishMaxScore = settings.EnglishWeight,
+                ExamMathMaxScore = settings.MathWeight,
+                ExamSoftwareMaxScore = settings.SoftwareWeight,
+                ExamIqMaxScore = settings.IqWeight,
                 ExamTotal = examTotal,
                 TotalScore = examTotal,
-                InterviewPercentage = interviewPercentage,
+                TotalPercentage = totalPercentage,
                 HasOnlineTrainingCourses = admissionProfile?.HasOnlineTrainingCourses ?? false,
                 HasICDLLicense = admissionProfile?.HasIcdllicense ?? false,
                 HasLaptop = admissionProfile?.HasLaptop ?? false,
@@ -264,8 +294,7 @@ public class AdminRepo : IAdminRepo
         if (examResults == null)
             return 0;
 
-        return examResults.ExamMathScore + examResults.ExamEnglishScore +
-               examResults.ExamArabicScore + examResults.ExamSoftwareScore;
+        return ExamScoring.GetTotal(examResults);
     }
 
     public Task<string> GetCurrentAdminEmailAsync(ClaimsPrincipal user)
@@ -406,13 +435,18 @@ public class AdminRepo : IAdminRepo
             .Take(request.PageSize)
             .ToListAsync();
 
+        var activeSettings = await _settingsService.GetActiveAsync();
+
         // Materialize the final results, including post-materialization sorting for InterviewScore
         var result = pagedStudents.Select(s =>
         {
-            int examTotal = (s.ExamResults?.ExamMathScore ?? 0) +
-                            (s.ExamResults?.ExamEnglishScore ?? 0) +
-                            (s.ExamResults?.ExamSoftwareScore ?? 0) +
-                            (s.ExamResults?.ExamArabicScore ?? 0);
+            var settings = s.ExamResults != null
+                ? AdmissionSettingsService.GetHistoricalBaseline(s.ExamResults)
+                : activeSettings;
+            var examTotal = AdmissionSettingsService.GetExamTotal(s.ExamResults);
+            var examAdmissionContribution = settings.SchoolExamWeight > 0
+                ? AdmissionSettingsService.GetExamPercentage(s.ExamResults, settings) * (double)settings.SchoolExamWeight / 100d
+                : 0;
 
             return new
             {
@@ -430,10 +464,18 @@ public class AdminRepo : IAdminRepo
                 ExamEnglishScore = s.ExamResults?.ExamEnglishScore ?? 0,
                 ExamSoftwareScore = s.ExamResults?.ExamSoftwareScore ?? 0,
                 ExamArabicScore = s.ExamResults?.ExamArabicScore ?? 0,
+                ExamIqScore = s.ExamResults?.ExamIqScore,
+                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(settings),
+                ExamPercentage = AdmissionSettingsService.GetExamPercentage(s.ExamResults, settings),
+                ExamArabicMaxScore = settings.ArabicWeight,
+                ExamEnglishMaxScore = settings.EnglishWeight,
+                ExamMathMaxScore = settings.MathWeight,
+                ExamSoftwareMaxScore = settings.SoftwareWeight,
+                ExamIqMaxScore = settings.IqWeight,
                 ExamTotal = examTotal,
                 InterviewScore = s.InterviewScore,
                 InterviewScores = s.InterviewScores,
-                TotalScore = examTotal + (s.InterviewScore ?? 0),
+                TotalScore = examAdmissionContribution + (s.InterviewScore ?? 0),
                 HasLaptop = s.AdmissionProfile?.HasLaptop ?? false,
                 CreatedAt = s.CreatedAt
             };
@@ -591,19 +633,24 @@ public class AdminRepo : IAdminRepo
             .Take(request.PageSize)
             .ToListAsync();
 
+        var activeSettings = await _settingsService.GetActiveAsync();
+
         // Materialize the final results, including post-materialization sorting and calculations
         var result = pagedStudents.Select(s =>
         {
-            int examTotal = (s.ExamResults?.ExamMathScore ?? 0) +
-                            (s.ExamResults?.ExamEnglishScore ?? 0) +
-                            (s.ExamResults?.ExamSoftwareScore ?? 0) +
-                            (s.ExamResults?.ExamArabicScore ?? 0);
-
-            double totalPercentage = examTotal;
-            foreach (var interviewScore in s.InterviewScores)
-            {
-                totalPercentage += (double)(interviewScore.Score / 3);
-            }
+            var settings = s.ExamResults != null
+                ? AdmissionSettingsService.GetHistoricalBaseline(s.ExamResults)
+                : activeSettings;
+            var examTotal = AdmissionSettingsService.GetExamTotal(s.ExamResults);
+            var totalPercentage = AdmissionSettingsService.GetTotalPercentage(
+                s.ExamResults,
+                new AdmissionProfile
+                {
+                    ThirdPrepScore = s.FinalYearScore,
+                    MinistryExamPercentage = s.MinistryExamPercentage
+                },
+                s.InterviewScores.Select(score => (decimal)score.Score),
+                settings);
 
             return new
             {
@@ -626,6 +673,14 @@ public class AdminRepo : IAdminRepo
                 ExamEnglishScore = s.ExamResults?.ExamEnglishScore ?? 0,
                 ExamSoftwareScore = s.ExamResults?.ExamSoftwareScore ?? 0,
                 ExamArabicScore = s.ExamResults?.ExamArabicScore ?? 0,
+                ExamIqScore = s.ExamResults?.ExamIqScore,
+                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(settings),
+                ExamPercentage = AdmissionSettingsService.GetExamPercentage(s.ExamResults, settings),
+                ExamArabicMaxScore = settings.ArabicWeight,
+                ExamEnglishMaxScore = settings.EnglishWeight,
+                ExamMathMaxScore = settings.MathWeight,
+                ExamSoftwareMaxScore = settings.SoftwareWeight,
+                ExamIqMaxScore = settings.IqWeight,
                 ExamTotal = examTotal,
                 InterviewScores = s.InterviewScores,
                 TotalScore = examTotal + s.InterviewScores.Sum(i => i.Score),
@@ -668,4 +723,3 @@ public class AdminRepo : IAdminRepo
         };
     }
 }
-

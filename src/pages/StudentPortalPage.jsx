@@ -334,7 +334,7 @@ const StudentPortalPage = () => {
                           />
                         </div>
                         <p className="text-xs text-gray-600 mt-2">
-                          Score: {section.score}/15 ({section.scorePercent}%) | Suggested weekly focus:{" "}
+                          Score: {section.score}/{section.maxScore} ({section.scorePercent}%) | Suggested weekly focus:{" "}
                           {section.weeklyHours} hour(s)
                         </p>
                       </div>

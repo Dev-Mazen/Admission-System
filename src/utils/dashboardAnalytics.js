@@ -69,6 +69,24 @@ const getAverage = (students, keys) => {
   return count ? Number((total / count).toFixed(2)) : 0;
 };
 
+const getExamSectionPercentageAverage = (students, keys, sectionName) => {
+  let total = 0;
+  let count = 0;
+
+  students.forEach((student) => {
+    if (sectionName === "IQ" && !hasIqExamScore(student)) return;
+
+    const score = getNumericValue(student, keys);
+    const maximum = getExamSectionMaximum(student, sectionName);
+    if (score !== null && maximum > 0) {
+      total += (score * 100) / maximum;
+      count += 1;
+    }
+  });
+
+  return count ? Number((total / count).toFixed(2)) : 0;
+};
+
 export const buildDashboardAverages = (students) => ({
   ministryExamAverage: getAverage(students, [
     "ministryExamPercentage",
@@ -82,19 +100,31 @@ export const buildDashboardAverages = (students) => ({
   ]),
   mathPrepAverage: getAverage(students, ["mathScore", "MathScore"]),
   englishPrepAverage: getAverage(students, ["englishScore", "EnglishScore"]),
-  examSoftwareAverage: getAverage(students, [
-    "examSoftwareScore",
-    "ExamSoftwareScore",
-  ]),
-  examEnglishAverage: getAverage(students, [
-    "examEnglishScore",
-    "ExamEnglishScore",
-  ]),
-  examArabicAverage: getAverage(students, [
-    "examArabicScore",
-    "ExamArabicScore",
-  ]),
-  examMathAverage: getAverage(students, ["examMathScore", "ExamMathScore"]),
+  examSoftwareAverage: getExamSectionPercentageAverage(
+    students,
+    ["examSoftwareScore", "ExamSoftwareScore"],
+    "Software"
+  ),
+  examEnglishAverage: getExamSectionPercentageAverage(
+    students,
+    ["examEnglishScore", "ExamEnglishScore"],
+    "English"
+  ),
+  examArabicAverage: getExamSectionPercentageAverage(
+    students,
+    ["examArabicScore", "ExamArabicScore"],
+    "Arabic"
+  ),
+  examMathAverage: getExamSectionPercentageAverage(
+    students,
+    ["examMathScore", "ExamMathScore"],
+    "Math"
+  ),
+  examIqAverage: getExamSectionPercentageAverage(
+    students,
+    ["examIqScore", "ExamIqScore"],
+    "IQ"
+  ),
 });
 
 export const buildDashboardAnalytics = (students, options = {}) => {
@@ -256,3 +286,7 @@ export const buildDashboardAnalytics = (students, options = {}) => {
 
   return { acceptanceData, schoolData, laptopData, interviewerData, dailyData };
 };
+import {
+  getExamSectionMaximum,
+  hasIqExamScore,
+} from "./examScoring";

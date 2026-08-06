@@ -44,6 +44,13 @@ import {
   buildDashboardAverages,
   buildDashboardStats,
 } from "../utils/dashboardAnalytics";
+import {
+  getExamAdmissionContribution,
+  getExamMaximum,
+  getExamPercentage,
+  getExamTotal,
+  hasIqExamScore,
+} from "../utils/examScoring";
 import StudentDetailsModal from "../components/StudentDetailsModal";
 
 const AdminDashboardPage = () => {
@@ -184,16 +191,10 @@ const AdminDashboardPage = () => {
       // For super admin, use the InterviewPercentage from backend
       return Math.round(student.interviewPercentage || 0);
     } else {
-      // For regular admin, calculate based on exam scores + their interview score
-      const examTotal =
-        (student.examMathScore || 0) +
-        (student.examEnglishScore || 0) +
-        (student.examArabicScore || 0) +
-        (student.examSoftwareScore || 0);
+      const examContribution = getExamAdmissionContribution(student);
       const interviewTotal = student.interviewScore || 0;
 
-      // Calculate total percentage based on exam and interview scores
-      const totalScore = examTotal + interviewTotal;
+      const totalScore = examContribution + interviewTotal;
       return Math.round(totalScore);
     }
   };
@@ -882,25 +883,18 @@ const AdminDashboardPage = () => {
                                 <div>Math: {student.examMathScore || 0}</div>
                                 <div>Eng: {student.examEnglishScore || 0}</div>
                                 <div>Ar: {student.examArabicScore || 0}</div>
+                                {hasIqExamScore(student) && (
+                                  <div>IQ: {student.examIqScore || 0}</div>
+                                )}
                               </div>
                             )}
                           </TableCell>
                           <TableCell>
                             <div className="font-bold text-[#ef3131]">
-                              {(student.examMathScore || 0) +
-                                (student.examEnglishScore || 0) +
-                                (student.examArabicScore || 0) +
-                                (student.examSoftwareScore || 0)}
+                              {getExamTotal(student)}/{getExamMaximum(student)}
                             </div>
                             <div className="text-sm text-gray-600 mt-1">
-                              {(() => {
-                                const total = (student.examMathScore || 0) +
-                                  (student.examEnglishScore || 0) +
-                                  (student.examArabicScore || 0) +
-                                  (student.examSoftwareScore || 0);
-                                const percentage = (total / 60) * 100;
-                                return `${percentage.toFixed(1)}%`;
-                              })()}
+                              {getExamPercentage(student).toFixed(1)}%
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1432,7 +1426,7 @@ const AdminDashboardPage = () => {
                               Software
                             </p>
                             <p className="text-2xl font-bold text-rose-900">
-                              {averages.examSoftwareAverage.toFixed(2)}
+                              {averages.examSoftwareAverage.toFixed(2)}%
                             </p>
                           </div>
                           <div className="h-10 w-10 rounded-full bg-white text-rose-600 flex items-center justify-center shadow-sm">
@@ -1457,7 +1451,7 @@ const AdminDashboardPage = () => {
                           <div>
                             <p className="text-xs font-semibold text-sky-700">English</p>
                             <p className="text-2xl font-bold text-sky-900">
-                              {averages.examEnglishAverage.toFixed(2)}
+                              {averages.examEnglishAverage.toFixed(2)}%
                             </p>
                           </div>
                           <div className="h-10 w-10 rounded-full bg-white text-sky-600 flex items-center justify-center shadow-sm">
@@ -1488,7 +1482,7 @@ const AdminDashboardPage = () => {
                           <div>
                             <p className="text-xs font-semibold text-teal-700">Arabic</p>
                             <p className="text-2xl font-bold text-teal-900">
-                              {averages.examArabicAverage.toFixed(2)}
+                              {averages.examArabicAverage.toFixed(2)}%
                             </p>
                           </div>
                           <div className="h-10 w-10 rounded-full bg-white text-teal-600 flex items-center justify-center shadow-sm">
@@ -1513,7 +1507,7 @@ const AdminDashboardPage = () => {
                           <div>
                             <p className="text-xs font-semibold text-orange-700">Math</p>
                             <p className="text-2xl font-bold text-orange-900">
-                              {averages.examMathAverage.toFixed(2)}
+                              {averages.examMathAverage.toFixed(2)}%
                             </p>
                           </div>
                           <div className="h-10 w-10 rounded-full bg-white text-orange-600 flex items-center justify-center shadow-sm">
@@ -1538,6 +1532,12 @@ const AdminDashboardPage = () => {
                             </svg>
                           </div>
                         </div>
+                      </div>
+                      <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+                        <p className="text-xs font-semibold text-indigo-700">IQ</p>
+                        <p className="text-2xl font-bold text-indigo-900">
+                          {averages.examIqAverage.toFixed(2)}%
+                        </p>
                       </div>
                     </div>
                   </CardContent>
