@@ -14,14 +14,68 @@ public class StudentController : ControllerBase
     private readonly IExamRepo _examRepo;
     private readonly IAuthRepo _authRepo;
     private readonly SchoolAdmissionDbContext _db;
+    private readonly AdmissionSettingsService _settingsService;
 
-    public StudentController( IWebHostEnvironment environment, IStudentRepo studentRepo, IExamRepo examRepo, IAuthRepo authRepo, SchoolAdmissionDbContext db)
+    public StudentController( IWebHostEnvironment environment, IStudentRepo studentRepo, IExamRepo examRepo, IAuthRepo authRepo, SchoolAdmissionDbContext db, AdmissionSettingsService settingsService)
     {
         _environment = environment;
         _studentRepo = studentRepo;
         _examRepo = examRepo;
         _authRepo = authRepo;
         _db = db;
+        _settingsService = settingsService;
+    }
+
+    private static string[] GetRequiredExamSections(string schoolType)
+        => ExamScoring.GetRequiredSections(schoolType);
+
+    private async Task<List<ExamSectionReadiness>> GetExamSectionReadinessAsync(
+        string schoolType,
+        SchoolAdmission.Models.HubSettings settings)
+    {
+        var requiredSections = GetRequiredExamSections(schoolType);
+        var sectionQuestionCounts = await _db.Sections
+            .Where(section => requiredSections.Contains(section.SectionName))
+            .Select(section => new
+            {
+                section.SectionName,
+                QuestionCount = section.ExamQuestions.Count
+            })
+            .ToListAsync();
+
+        var questionCountBySection = sectionQuestionCounts.ToDictionary(
+            section => section.SectionName,
+            section => section.QuestionCount,
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        return requiredSections
+            .Select(sectionName =>
+            {
+                questionCountBySection.TryGetValue(sectionName, out var availableQuestions);
+                var isReady = settings.RequireFullQuestionSet != 0
+                    ? availableQuestions >= settings.QuestionsPerSection
+                    : availableQuestions > 0;
+
+                return new ExamSectionReadiness
+                {
+                    SectionName = sectionName,
+                    AvailableQuestions = availableQuestions,
+                    RequiredQuestions = settings.RequireFullQuestionSet != 0
+                        ? settings.QuestionsPerSection
+                        : Math.Min(availableQuestions, settings.QuestionsPerSection),
+                    IsReady = isReady
+                };
+            })
+            .ToList();
+    }
+
+    private sealed class ExamSectionReadiness
+    {
+        public string SectionName { get; set; } = "";
+        public int AvailableQuestions { get; set; }
+        public int RequiredQuestions { get; set; }
+        public bool IsReady { get; set; }
     }
 
     [HttpGet("validate/{nationalId}")]
@@ -205,17 +259,6 @@ public class StudentController : ControllerBase
 
               
 
-            // Check if exam questions are available
-            var areQuestionsAvailable = await _examRepo.areExamQuestionsAvailableAsync();
-            if (!areQuestionsAvailable)
-            {
-                return BadRequest(new
-                {
-                    error = "Exam Not Ready",
-                    message = "The exam is not ready yet. Please check back later."
-                });
-            }
-
             // Check if student has school type specified
             var schoolType = account.AdmissionProfile?.PreviousSchoolType;
             if (string.IsNullOrEmpty(schoolType))
@@ -227,13 +270,27 @@ public class StudentController : ControllerBase
                 });
             }
 
-            // Validate school type
-            if (schoolType != "لغات" && schoolType != "عربي")
+            if (ExamScoring.ResolveMathSection(schoolType) == null)
             {
                 return BadRequest(new
                 {
                     error = "Invalid School Type",
                     message = "Invalid school type. Please contact administration."
+                });
+            }
+
+            var settings = await _settingsService.GetForExamValidationAsync(account.Id);
+            var examReadiness = await GetExamSectionReadinessAsync(schoolType, settings);
+            var unavailableSections = examReadiness.Where(section => !section.IsReady).ToList();
+            if (unavailableSections.Any())
+            {
+                return BadRequest(new
+                {
+                    error = "Exam Not Ready",
+                    message = "The exam is not ready yet. Some required sections do not have enough questions.",
+                    questionsPerSection = settings.QuestionsPerSection,
+                    requireFullQuestionSet = settings.RequireFullQuestionSet,
+                    sections = unavailableSections
                 });
             }
 
@@ -243,7 +300,12 @@ public class StudentController : ControllerBase
                 name = account.FullNameEn,
                 examCompleted = false,
                 accountId = account.Id,
-                schoolType = schoolType
+                schoolType = schoolType,
+                questionsPerSection = settings.QuestionsPerSection,
+                requireFullQuestionSet = settings.RequireFullQuestionSet,
+                examDurationMinutes = settings.ExamDurationMinutes,
+                settingsVersion = settings.VersionNumber,
+                sections = examReadiness
             });
         }
         catch (Exception ex)
@@ -278,23 +340,39 @@ public class StudentController : ControllerBase
                 ["Math"] = examResult?.ExamMathScore ?? 0,
                 ["Software"] = examResult?.ExamSoftwareScore ?? 0
             };
+            if (examResult?.ExamIqScore.HasValue == true)
+                examSectionScores["IQ"] = examResult.ExamIqScore.Value;
 
-            var examTotal = examSectionScores.Values.Sum();
-            var examMax = 60;
-            var hasCompletedExam = examResult != null;
-            var examPercentage = hasCompletedExam ? Math.Round((double)examTotal * 100 / examMax, 2) : 0;
+            var hasCompletedExam = await _db.StudentExamAnswers.AnyAsync(a => a.AccountId == account.Id);
+            var settings = await _settingsService.GetForStudentAsync(account.Id, examResult);
+            var examTotal = AdmissionSettingsService.GetExamTotal(examResult);
+            var examMax = AdmissionSettingsService.GetExamMaximum(settings);
+            var examPercentage = AdmissionSettingsService.GetExamPercentage(examResult, settings);
 
-            var cohortExamTotals = await _db.StudentExamResults
+            var cohortExamResults = await _db.StudentExamResults
                 .AsNoTracking()
-                .Select(r => r.ExamArabicScore + r.ExamEnglishScore + r.ExamMathScore + r.ExamSoftwareScore)
                 .ToListAsync();
+            var cohortExamPercentages = new List<double>();
+            foreach (var cohortResult in cohortExamResults)
+            {
+                var cohortSettings = await _settingsService.GetForStudentAsync(
+                    cohortResult.AccountId,
+                    cohortResult);
+                cohortExamPercentages.Add(AdmissionSettingsService.GetExamPercentage(
+                    cohortResult,
+                    cohortSettings));
+            }
 
-            var cohortAverage = cohortExamTotals.Any()
-                ? Math.Round(cohortExamTotals.Average(), 2)
+            var cohortAverage = cohortExamPercentages.Any()
+                ? Math.Round(cohortExamPercentages.Average() * (double)examMax / 100, 2)
                 : 0;
 
-            var percentileRank = hasCompletedExam && cohortExamTotals.Any()
-                ? Math.Round((double)cohortExamTotals.Count(score => score <= examTotal) * 100 / cohortExamTotals.Count, 2)
+            var percentileRank = hasCompletedExam && cohortExamPercentages.Any()
+                ? Math.Round(
+                    (double)cohortExamPercentages.Count(score => score <= examPercentage) *
+                    100 /
+                    cohortExamPercentages.Count,
+                    2)
                 : 0;
 
             var interviewScores = await _db.InterviewScores

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -35,6 +35,8 @@ public partial class SchoolAdmissionDbContext : DbContext
     public virtual DbSet<StudentExamAnswer> StudentExamAnswers { get; set; }
 
     public virtual DbSet<StudentExamResult> StudentExamResults { get; set; }
+
+    public virtual DbSet<HubSettings> HubSettings { get; set; }
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -165,10 +167,31 @@ public partial class SchoolAdmissionDbContext : DbContext
             entity.ToTable("StudentExamResult");
 
             entity.Property(e => e.AccountId).ValueGeneratedNever();
+            entity.Property(e => e.ExamIqScore).HasColumnName("ExamIQScore");
+            entity.Property(e => e.ExamStartedAtUtc).HasColumnName("ExamStartedAtUtc").HasColumnType("datetime2");
+            entity.Property(e => e.ExtensionMinutes).HasColumnName("ExtensionMinutes");
 
             entity.HasOne(d => d.Account).WithOne(p => p.StudentExamResult)
                 .HasForeignKey<StudentExamResult>(d => d.AccountId)
                 .HasConstraintName("FK_StudentExamResult_Account");
+        });
+
+        modelBuilder.Entity<HubSettings>(entity =>
+        {
+            entity.ToTable("HUB_Settings");
+            entity.HasIndex(e => e.VersionNumber).IsUnique();
+            entity.Property(e => e.VersionName).HasMaxLength(150);
+            entity.Property(e => e.SettingStatusId).HasColumnName("Setting_StatusID");
+            entity.Property(e => e.SchoolExamWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.InterviewWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.PreparatoryCertificateWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.MinistryExamWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.ArabicWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.EnglishWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.MathWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.SoftwareWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.IqWeight).HasColumnType("decimal(6, 2)");
+            entity.Property(e => e.CreatedAtUtc).HasColumnType("datetime2");
         });
 
         OnModelCreatingPartial(modelBuilder);

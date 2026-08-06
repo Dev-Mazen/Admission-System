@@ -33,7 +33,12 @@ const SessionManager = () => {
         const currentPath = location.pathname;
 
         if (role === "SuperAdmin") {
-          if (currentPath !== "/super-admin/dashboard") {
+          const allowedSuperAdminPaths = [
+            "/super-admin/dashboard",
+            "/admin/excel-upload",
+          ];
+
+          if (!allowedSuperAdminPaths.includes(currentPath)) {
             navigate("/super-admin/dashboard");
           }
         } else if (role === "Board") {

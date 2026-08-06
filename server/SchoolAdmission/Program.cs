@@ -29,6 +29,7 @@ builder.Services.AddScoped<IAuthRepo, AuthRepo>();
 builder.Services.AddScoped<IExamRepo, ExamRepo>();
 builder.Services.AddScoped<IStudentRepo, StudentRepo>();
 builder.Services.AddScoped<ISectionRepo, SectionRepo>();
+builder.Services.AddScoped<AdmissionSettingsService>();
 
 // Simple CORS
 builder.Services.AddCors(options =>
@@ -67,6 +68,11 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+var startupLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Startup");
+startupLogger.LogInformation(
+    "Environment: {Environment}. Exam and admission settings are loaded from versioned database configuration.",
+    app.Environment.EnvironmentName);
 
 // Middleware
 app.UseSwagger();

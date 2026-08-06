@@ -6,6 +6,7 @@ namespace SchoolAdmission.DTOs
     {
         [Required]
         public string NationalId { get; set; } = string.Empty;
+        [Required]
         public List<AnswerDTO> Answers { get; set; } = new List<AnswerDTO>();
     }
 
@@ -16,4 +17,4 @@ namespace SchoolAdmission.DTOs
         [Required]
         public string ChosenAnswer { get; set; } = string.Empty;
     }
-} 
+}

@@ -135,6 +135,10 @@ export const adminAPI = {
     ),
 
   getExportColumns: () => api.get("/Admin/export-students-columns"),
+
+  getAdmissionSettings: () => api.get("/admin/settings"),
+
+  saveAdmissionSettings: (settings) => api.post("/admin/settings", settings),
 };
 
 // Student Affair API
@@ -161,6 +165,7 @@ export const examAPI = {
     api.get(`/Exam/questions/${sectionName}`),
   getQuestionsBySectionWithSchoolType: (sectionName, nationalId) =>
     api.get(`/Exam/questions/${sectionName}/${nationalId}`),
+  getExamTiming: (nationalId) => api.get(`/Exam/timing/${nationalId}`),
   getExamResults: (nationalId) => api.get(`/Exam/results/${nationalId}`),
   getStudentAnswers: (nationalId) => api.get(`/Exam/answers/${nationalId}`),
   getAllResults: () => api.get("/Exam/all-results"),

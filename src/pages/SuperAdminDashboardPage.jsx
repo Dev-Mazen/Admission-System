@@ -22,12 +22,20 @@ import {
 } from "../components/ui/Table";
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
+import AdmissionSettingsPanel from "../components/AdmissionSettingsPanel";
+import { ArrowLeft, Settings } from "lucide-react";
 import { adminAPI } from "../utils/api";
 import {
   buildDashboardAnalytics,
   buildDashboardAverages,
   buildDashboardStats,
 } from "../utils/dashboardAnalytics";
+import {
+  getExamAdmissionContribution,
+  getExamMaximum,
+  getExamTotal,
+  hasIqExamScore,
+} from "../utils/examScoring";
 import {
   PieChart,
   Pie,
@@ -133,6 +141,13 @@ const SuperAdminDashboardPage = () => {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (!successMessage) return;
+
+    const timeoutId = window.setTimeout(() => setSuccessMessage(null), 3000);
+    return () => window.clearTimeout(timeoutId);
+  }, [successMessage]);
 
   // Authentication is handled by SessionManager component
 
@@ -267,18 +282,12 @@ const SuperAdminDashboardPage = () => {
   };
 
   const calculatePercentage = (student) => {
-    if (currentAdminRole === "Board") {
-      // For super admin, use the TotalPercentage from backend
-      if (student.totalPercentage !== undefined) {
-        return student.totalPercentage;
-      }
+    if (student.totalPercentage !== undefined) {
+      return student.totalPercentage;
+    }
 
-      // Fallback calculation if backend data is not available
-      const examTotal =
-        (student.examMathScore || 0) +
-        (student.examEnglishScore || 0) +
-        (student.examArabicScore || 0) +
-        (student.examSoftwareScore || 0);
+    if (currentAdminRole === "Board") {
+      const examContribution = getExamAdmissionContribution(student);
 
       // Calculate interview contribution: each score divided by 3
       let interviewContribution = 0;
@@ -291,19 +300,13 @@ const SuperAdminDashboardPage = () => {
         );
       }
 
-      const totalScore = examTotal + interviewContribution;
+      const totalScore = examContribution + interviewContribution;
       return Math.round(totalScore * 100) / 100; // Round to 2 decimal places
     } else {
-      // For regular admin, calculate based on exam scores + their interview score
-      const examTotal =
-        (student.examMathScore || 0) +
-        (student.examEnglishScore || 0) +
-        (student.examArabicScore || 0) +
-        (student.examSoftwareScore || 0);
+      const examContribution = getExamAdmissionContribution(student);
       const interviewTotal = student.interviewScore || 0;
 
-      // Calculate total percentage based on exam and interview scores
-      const totalScore = examTotal + interviewTotal;
+      const totalScore = examContribution + interviewTotal;
       return Math.round(totalScore);
     }
   };
@@ -323,10 +326,6 @@ const SuperAdminDashboardPage = () => {
       // Set success message
       setSuccessMessage(`Student status updated successfully to ${status}`);
 
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
     } catch (err) {
       setError(err.response?.data || "Failed to update student status");
     } finally {
@@ -446,7 +445,7 @@ const SuperAdminDashboardPage = () => {
       {/* Header */}
       <div className="bg-white shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-[#ef3131]">
                 Super Admin Dashboard
@@ -457,12 +456,23 @@ const SuperAdminDashboardPage = () => {
                 </p>
               )}
             </div>
-            <div className="flex space-x-3">
-              <Button
-                variant="outline"
-                onClick={handleExportButtonClick}
-                className="border-green-500 text-green-500 hover:bg-green-50"
-              >
+            <div className="flex flex-wrap justify-end gap-3">
+              {activeTab === "settings" ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setActiveTab("charts")}
+                  className="border-gray-400 text-gray-800 hover:bg-gray-100"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Dashboard
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleExportButtonClick}
+                    className="border-green-500 text-green-600 hover:bg-green-50"
+                  >
                 <svg
                   className="h-4 w-4 mr-2"
                   fill="none"
@@ -477,12 +487,12 @@ const SuperAdminDashboardPage = () => {
                   />
                 </svg>
                 Export as Excel
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate("/admin/excel-upload")}
-                className="border-blue-500 text-blue-500 hover:bg-blue-50"
-              >
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/admin/excel-upload")}
+                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                  >
                 <svg
                   className="h-4 w-4 mr-2"
                   fill="none"
@@ -497,7 +507,17 @@ const SuperAdminDashboardPage = () => {
                   />
                 </svg>
                 Upload Questions
-              </Button>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setActiveTab("settings")}
+                    className="border-gray-500 text-gray-800 hover:bg-gray-100"
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Button>
+                </>
+              )}
               <Button
                 variant="outline"
                 onClick={() => {
@@ -525,27 +545,29 @@ const SuperAdminDashboardPage = () => {
           </div>
         </div>
 
-        <div className="bg-white">
-          <div className="max-w-7xl mx-auto px-4 py-2 flex">
-            <div className="inline-flex rounded-lg bg-gray-100 p-1">
-              {[
-                { id: "dashboard", label: "Student Applications" },
-                { id: "charts", label: "Dashboard" },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500/40 ${activeTab === tab.id
-                    ? "bg-white text-[#ef3131] shadow-sm"
-                    : "text-gray-600 hover:bg-red-100 hover:text-gray-900"
-                    }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
+        {activeTab !== "settings" && (
+          <div className="bg-white">
+            <div className="max-w-7xl mx-auto px-4 py-2 flex">
+              <div className="inline-flex rounded-lg bg-gray-100 p-1">
+                {[
+                  { id: "dashboard", label: "Student Applications" },
+                  { id: "charts", label: "Dashboard" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500/40 ${activeTab === tab.id
+                      ? "bg-white text-[#ef3131] shadow-sm"
+                      : "text-gray-600 hover:bg-red-100 hover:text-gray-900"
+                      }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {activeTab === "dashboard" && (
@@ -966,14 +988,24 @@ const SuperAdminDashboardPage = () => {
                             {/* exam scores Data, display exam scores in a table, second column*/}
                             <TableCell>
                               <div className="space-y-1 text-sm">
-                                <div>Arabic: {student.examArabicScore}/15</div>
-                                <div>English: {student.examEnglishScore}/15</div>
-                                <div>Math: {student.examMathScore}/15</div>
+                                <div>Arabic: {student.examArabicScore}/{student.examArabicMaxScore ?? 15}</div>
                                 <div>
-                                  Software: {student.examSoftwareScore}/15
+                                  English: {student.examEnglishScore}/
+                                  {student.examEnglishMaxScore ?? (hasIqExamScore(student) ? 30 : 15)}
                                 </div>
+                                <div>
+                                  Math: {student.examMathScore}/
+                                  {student.examMathMaxScore ?? (hasIqExamScore(student) ? 30 : 15)}
+                                </div>
+                                <div>
+                                  Software: {student.examSoftwareScore}/{student.examSoftwareMaxScore ?? 15}
+                                </div>
+                                {hasIqExamScore(student) && (
+                                  <div>IQ: {student.examIqScore}/{student.examIqMaxScore ?? 10}</div>
+                                )}
                                 <div className="font-bold text-blue-600">
-                                  Total: {student.examTotal}/60
+                                  Total: {getExamTotal(student)}/
+                                  {getExamMaximum(student)}
                                 </div>
                               </div>
                             </TableCell>
@@ -1453,7 +1485,7 @@ const SuperAdminDashboardPage = () => {
                             Software
                           </p>
                           <p className="text-2xl font-bold text-rose-900">
-                            {averages.examSoftwareAverage.toFixed(2)}
+                            {averages.examSoftwareAverage.toFixed(2)}%
                           </p>
                         </div>
                         <div className="h-10 w-10 rounded-full bg-white text-rose-600 flex items-center justify-center shadow-sm">
@@ -1478,7 +1510,7 @@ const SuperAdminDashboardPage = () => {
                         <div>
                           <p className="text-xs font-semibold text-sky-700">English</p>
                           <p className="text-2xl font-bold text-sky-900">
-                            {averages.examEnglishAverage.toFixed(2)}
+                            {averages.examEnglishAverage.toFixed(2)}%
                           </p>
                         </div>
                         <div className="h-10 w-10 rounded-full bg-white text-sky-600 flex items-center justify-center shadow-sm">
@@ -1509,7 +1541,7 @@ const SuperAdminDashboardPage = () => {
                         <div>
                           <p className="text-xs font-semibold text-teal-700">Arabic</p>
                           <p className="text-2xl font-bold text-teal-900">
-                            {averages.examArabicAverage.toFixed(2)}
+                            {averages.examArabicAverage.toFixed(2)}%
                           </p>
                         </div>
                         <div className="h-10 w-10 rounded-full bg-white text-teal-600 flex items-center justify-center shadow-sm">
@@ -1534,7 +1566,7 @@ const SuperAdminDashboardPage = () => {
                         <div>
                           <p className="text-xs font-semibold text-orange-700">Math</p>
                           <p className="text-2xl font-bold text-orange-900">
-                            {averages.examMathAverage.toFixed(2)}
+                            {averages.examMathAverage.toFixed(2)}%
                           </p>
                         </div>
                         <div className="h-10 w-10 rounded-full bg-white text-orange-600 flex items-center justify-center shadow-sm">
@@ -1559,6 +1591,12 @@ const SuperAdminDashboardPage = () => {
                           </svg>
                         </div>
                       </div>
+                    </div>
+                    <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-4">
+                      <p className="text-xs font-semibold text-indigo-700">IQ</p>
+                      <p className="text-2xl font-bold text-indigo-900">
+                        {averages.examIqAverage.toFixed(2)}%
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -1698,6 +1736,10 @@ const SuperAdminDashboardPage = () => {
             </Card>
           </div>
         </div>
+      )}
+
+      {activeTab === "settings" && (
+        <AdmissionSettingsPanel onSaved={refreshData} />
       )}
 
       {/* Status Change Confirmation Modal */}

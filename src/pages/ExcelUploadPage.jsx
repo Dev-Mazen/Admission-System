@@ -11,10 +11,9 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import { Alert, AlertDescription } from "../components/ui/Alert";
-import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
 import { examAPI } from "../utils/api";
 import * as XLSX from "xlsx";
+import { ArrowLeft } from "lucide-react";
 
 const ExcelUploadPage = () => {
   const navigate = useNavigate();
@@ -24,6 +23,7 @@ const ExcelUploadPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [uploadResult, setUploadResult] = useState(null);
+  const [userInfo, setUserInfo] = useState({ fullName: "", role: "" });
 
   useEffect(() => {
     // Check if admin is authenticated
@@ -32,8 +32,15 @@ const ExcelUploadPage = () => {
       return;
     }
 
-    // Check if user is SuperAdmin (this will be handled by the backend)
-    // For now, we'll let the backend handle the authorization
+    try {
+      const payload = JSON.parse(atob(adminToken.split(".")[1]));
+      setUserInfo({
+        fullName: payload.fullName || payload.FullName || "",
+        role: payload.role || payload.Role || "",
+      });
+    } catch {
+      setUserInfo({ fullName: "", role: "SuperAdmin" });
+    }
   }, [adminToken, navigate]);
 
   const handleFileChange = (e) => {
@@ -268,6 +275,53 @@ const ExcelUploadPage = () => {
         "Application Programming Interface",
         "Software",
       ],
+
+      // IQ Questions
+      [
+        "Which number comes next: 2, 4, 8, 16, ?",
+        "18",
+        "24",
+        "32",
+        "34",
+        "32",
+        "IQ",
+      ],
+      [
+        "Which item does not belong?",
+        "Triangle",
+        "Square",
+        "Circle",
+        "Cube",
+        "Cube",
+        "IQ",
+      ],
+      [
+        "If all roses are flowers, which statement must be true?",
+        "All flowers are roses",
+        "Some roses are not flowers",
+        "Every rose is a flower",
+        "No flowers are roses",
+        "Every rose is a flower",
+        "IQ",
+      ],
+      [
+        "Complete the pattern: A, C, E, G, ?",
+        "H",
+        "I",
+        "J",
+        "K",
+        "I",
+        "IQ",
+      ],
+      [
+        "A clock shows 3:00. What is the angle between its hands?",
+        "30 degrees",
+        "60 degrees",
+        "90 degrees",
+        "120 degrees",
+        "90 degrees",
+        "IQ",
+      ],
     ];
 
     // Create workbook and worksheet
@@ -327,10 +381,59 @@ const ExcelUploadPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <header className="sticky top-0 z-40 bg-white shadow-md">
+        <div className="mx-auto max-w-7xl px-4 py-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-[#ef3131]">
+                Super Admin Dashboard
+              </h1>
+              {userInfo.fullName && (
+                <p className="mt-1 text-sm text-gray-600">
+                  Welcome {userInfo.fullName} ({userInfo.role})
+                </p>
+              )}
+            </div>
 
-      <div className="py-12">
+            <div className="flex flex-wrap justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/super-admin/dashboard")}
+                className="border-gray-400 text-gray-800 hover:bg-gray-100"
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  localStorage.removeItem("adminToken");
+                  navigate("/admin/login");
+                }}
+                className="border-red-500 text-red-500 hover:bg-red-50"
+              >
+                <svg
+                  className="mr-2 h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                Logout
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="py-8">
         <div className="max-w-4xl mx-auto px-4">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -462,7 +565,7 @@ const ExcelUploadPage = () => {
                   </h3>
                   <ul className="text-sm text-gray-600 space-y-1">
                     <li>• First row should be headers (will be skipped)</li>
-                    <li>• Section names will be created automatically</li>
+                    <li>• Section values must match an existing section</li>
                     <li>• Empty rows will be ignored</li>
                     <li>
                       • Questions will be assigned to sections based on Column G
@@ -471,22 +574,24 @@ const ExcelUploadPage = () => {
                       • Arabic characters are fully supported in the template
                     </li>
                     <li>• Use MathEN section for English math questions</li>
-                <li>• Use MathAR section for Arabic math questions</li>
+                    <li>• Use MathAR section for Arabic math questions</li>
+                    <li>• Use IQ section for intelligence questions</li>
                     <li>• Only SuperAdmin users can upload questions</li>
                   </ul>
                 </div>
 
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-2">
-                    Supported Sections (5 Languages)
+                    Supported Section Values
                   </h3>
                   <div className="text-sm text-gray-600">
                     <div className="grid grid-cols-2 gap-2">
                       <div>• Arabic (Arabic)</div>
                       <div>• English (English)</div>
-                                      <div>• MathEN (English)</div>
-                <div>• MathAR (Arabic)</div>
+                      <div>• MathEN (English)</div>
+                      <div>• MathAR (Arabic)</div>
                       <div>• Software (English)</div>
+                      <div>• IQ (Language-neutral)</div>
                     </div>
                   </div>
                 </div>
@@ -572,9 +677,7 @@ const ExcelUploadPage = () => {
             </Card>
           )}
         </div>
-      </div>
-
-      <Footer />
+      </main>
     </div>
   );
 };

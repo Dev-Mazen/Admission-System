@@ -34,7 +34,7 @@ const CheckNationalIdPage = () => {
     setSuccess("");
 
     try {
-      const response = await studentAPI.validateNationalId(nationalId);
+      await studentAPI.validateNationalId(nationalId);
 
       // Store the National ID for the next step
       localStorage.setItem("studentNationalId", nationalId);

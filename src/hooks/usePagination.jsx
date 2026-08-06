@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { adminAPI } from "../utils/api";
+import {
+  getExamAdmissionContribution,
+  getExamTotal,
+} from "../utils/examScoring";
 
 const formatDateOnly = (date) => {
   const year = date.getFullYear();
@@ -224,32 +228,33 @@ export const usePagination = () => {
           aVal = parseFloat(a.finalYearScore) || 0;
           bVal = parseFloat(b.finalYearScore) || 0;
           break;
-        case "totalScore":
+        case "totalScore": {
           // Sort by exam total (for Super Admin dashboard)
-          const aExamTotal = (a.examMathScore || 0) + (a.examEnglishScore || 0) + (a.examArabicScore || 0) + (a.examSoftwareScore || 0);
-          const bExamTotal = (b.examMathScore || 0) + (b.examEnglishScore || 0) + (b.examArabicScore || 0) + (b.examSoftwareScore || 0);
+          const aExamTotal = getExamTotal(a);
+          const bExamTotal = getExamTotal(b);
           aVal = Number(aExamTotal);
           bVal = Number(bExamTotal);
           break;
-        case "percentage":
+        }
+        case "percentage": {
           // Calculate the same way as the Percentage column displays
-          const aExamTotalForPercentage = (a.examMathScore || 0) + (a.examEnglishScore || 0) + (a.examArabicScore || 0) + (a.examSoftwareScore || 0);
-          const bExamTotalForPercentage = (b.examMathScore || 0) + (b.examEnglishScore || 0) + (b.examArabicScore || 0) + (b.examSoftwareScore || 0);
+          const aExamContribution = getExamAdmissionContribution(a);
+          const bExamContribution = getExamAdmissionContribution(b);
           const aInterviewTotal = a.interviewScore || 0;
           const bInterviewTotal = b.interviewScore || 0;
           
-          // For regular admin: examTotal + interviewTotal
-          // For super admin: use totalPercentage or calculate examTotal + interviewTotal
+          // Prefer the normalized backend percentage when it is available.
           if (a.totalPercentage !== undefined && b.totalPercentage !== undefined) {
             // Super admin - use totalPercentage from backend
             aVal = Number(a.totalPercentage || 0);
             bVal = Number(b.totalPercentage || 0);
           } else {
-            // Regular admin - use examTotal + interviewTotal
-            aVal = Number(aExamTotalForPercentage + aInterviewTotal);
-            bVal = Number(bExamTotalForPercentage + bInterviewTotal);
+            // Regular admin: 60-point exam contribution plus interview score.
+            aVal = Number(aExamContribution + aInterviewTotal);
+            bVal = Number(bExamContribution + bInterviewTotal);
           }
           break;
+        }
         case "interviewScore":
           aVal = parseFloat(a.interviewScore) || 0;
           bVal = parseFloat(b.interviewScore) || 0;

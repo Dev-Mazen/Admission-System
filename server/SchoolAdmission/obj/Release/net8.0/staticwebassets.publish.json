@@ -1,11 +1,1 @@
-{
-  "Version": 1,
-  "Hash": "RIZiGf5Noq00o9OsR/5krZdX+0rZNOBgqH8idcuUGHE=",
-  "Source": "SchoolAdmission",
-  "BasePath": "_content/SchoolAdmission",
-  "Mode": "Default",
-  "ManifestType": "Publish",
-  "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
-  "Assets": []
-}
+{"Version":1,"Hash":"ojZf9ZxJCnJOyKhcvHtlPebx3vN02nnztc0E7hSMx2I=","Source":"SchoolAdmission","BasePath":"/","Mode":"Root","ManifestType":"Publish","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}

@@ -7,26 +7,28 @@ using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.Security.Claims;
 using SchoolAdmission.Repos.IRepos;
+using SchoolAdmission.Services;
 
 [ApiController]
 [Route("api/[controller]")]
 public class ExamController : ControllerBase
 {
-    public static int questionsCount = 10;
     private readonly SchoolAdmissionDbContext db;
     private readonly IAuthRepo _authRepo;
     private readonly ISectionRepo _sectionRepo;
     private readonly IExamRepo _examRepo;
     private readonly IStudentRepo _studentRepo;
+    private readonly AdmissionSettingsService _settingsService;
 
 
-    public ExamController(SchoolAdmissionDbContext context, IAuthRepo authRepo, ISectionRepo sectionRepo, IExamRepo examRepo, IStudentRepo studentRepo)
+    public ExamController(SchoolAdmissionDbContext context, IAuthRepo authRepo, ISectionRepo sectionRepo, IExamRepo examRepo, IStudentRepo studentRepo, AdmissionSettingsService settingsService)
     {
         db = context;
         _authRepo = authRepo;
         _sectionRepo = sectionRepo;
         _examRepo = examRepo;
         _studentRepo = studentRepo;
+        _settingsService = settingsService;
     }
 
     private string GetCurrentAdminEmail()
@@ -54,48 +56,65 @@ public class ExamController : ControllerBase
         try
         {
             var importedQuestions = new List<ExamQuestion>();
+            var skippedRows = 0;
+            var sections = await db.Sections.AsNoTracking().ToListAsync();
+            var sectionsById = sections.ToDictionary(section => section.Id);
+            var sectionsByName = sections.ToDictionary(
+                section => section.SectionName,
+                StringComparer.OrdinalIgnoreCase);
 
             using var stream = file.OpenReadStream();
             using var package = new ExcelPackage(stream);
 
-            // Loop through all sheets in the workbook
             foreach (var worksheet in package.Workbook.Worksheets)
             {
-                // Each Sheet is the SectionId
-                if (!int.TryParse(worksheet.Name, out int sectionId))
+                if (worksheet.Dimension == null)
                     continue;
 
-                // Check if the section exists in the database
-                var sectionExists = await _sectionRepo.GetByIdAsync(sectionId);
-                if (sectionExists == null)
-                    continue;
+                Section? worksheetSection = null;
+                if (long.TryParse(worksheet.Name, out var worksheetSectionId))
+                    sectionsById.TryGetValue(worksheetSectionId, out worksheetSection);
+                else
+                    sectionsByName.TryGetValue(worksheet.Name.Trim(), out worksheetSection);
 
-                // Skip header row, start from row 2
                 for (int row = 2; row <= worksheet.Dimension.End.Row; row++)
                 {
-                    var questionTitle = worksheet.Cells[row, 1].Value?.ToString();
-                    var choice1 = worksheet.Cells[row, 2].Value?.ToString();
-                    var choice2 = worksheet.Cells[row, 3].Value?.ToString();
-                    var choice3 = worksheet.Cells[row, 4].Value?.ToString();
-                    var choice4 = worksheet.Cells[row, 5].Value?.ToString();
-                    var correctAnswer = worksheet.Cells[row, 6].Value?.ToString();
-                    var sectionIdStr = worksheet.Cells[row, 7].Value?.ToString();
+                    var questionTitle = worksheet.Cells[row, 1].Text.Trim();
+                    var choices = Enumerable.Range(2, 4)
+                        .Select(column => worksheet.Cells[row, column].Text.Trim())
+                        .ToArray();
+                    var correctAnswer = worksheet.Cells[row, 6].Text.Trim();
+                    var sectionIdentifier = worksheet.Cells[row, 7].Text.Trim();
 
-                    if (string.IsNullOrEmpty(questionTitle) || string.IsNullOrEmpty(sectionIdStr))
-                        continue; // Skip empty rows
+                    Section? rowSection = null;
+                    if (long.TryParse(sectionIdentifier, out var rowSectionId))
+                        sectionsById.TryGetValue(rowSectionId, out rowSection);
+                    else if (!string.IsNullOrWhiteSpace(sectionIdentifier))
+                        sectionsByName.TryGetValue(sectionIdentifier, out rowSection);
 
-                    if (!int.TryParse(sectionIdStr, out int parsedSectionId) || parsedSectionId != sectionId)
+                    rowSection ??= worksheetSection;
+
+                    var isValidQuestion = !string.IsNullOrWhiteSpace(questionTitle) &&
+                                          choices.All(choice => !string.IsNullOrWhiteSpace(choice)) &&
+                                          !string.IsNullOrWhiteSpace(correctAnswer) &&
+                                          choices.Contains(correctAnswer, StringComparer.OrdinalIgnoreCase) &&
+                                          rowSection != null;
+
+                    if (!isValidQuestion)
+                    {
+                        skippedRows++;
                         continue;
+                    }
 
                     var question = new ExamQuestion
                     {
                         QuestionTitle = questionTitle,
-                        Choice1 = choice1 ?? "",
-                        Choice2 = choice2 ?? "",
-                        Choice3 = choice3 ?? "",
-                        Choice4 = choice4 ?? "",
-                        CorrectAnswer = correctAnswer ?? "",
-                        SectionId = sectionId
+                        Choice1 = choices[0],
+                        Choice2 = choices[1],
+                        Choice3 = choices[2],
+                        Choice4 = choices[3],
+                        CorrectAnswer = correctAnswer,
+                        SectionId = rowSection!.Id
                     };
 
                     importedQuestions.Add(question);
@@ -109,6 +128,7 @@ public class ExamController : ControllerBase
             {
                 message = "Questions imported successfully (multi-sheets)",
                 importedCount = importedQuestions.Count,
+                skippedCount = skippedRows,
                 questions = importedQuestions.Select(q => new
                 {
                     q.Id,
@@ -136,49 +156,49 @@ public class ExamController : ControllerBase
         if (account == null)
             return NotFound("Student not found");
 
+        if (await db.StudentExamAnswers.AnyAsync(answer => answer.AccountId == account.Id))
+            return Conflict("Student has already completed the exam.");
+
         var schoolType = account.AdmissionProfile?.PreviousSchoolType;
+        var requiredSections = ExamScoring.GetRequiredSections(schoolType);
+        if (requiredSections.Length == 0)
+            return BadRequest("Invalid or missing school type.");
+
+        var timing = await _settingsService.StartOrResumeExamAsync(account.Id);
+        var settings = timing.Settings;
 
         var allSections = await _sectionRepo.getSectionsWithIncludeAsync();
-        var sections = allSections.Select(s => new
-        {
-            s.Id,
-            s.SectionName,
-            questionCount = s.ExamQuestions.Count
-        });
-
-
-        // Filter sections based on school type
-        var filteredSections = new List<object>();
-
-        foreach (var section in sections)
-        {
-            // Always include English, Arabic, and Software sections
-            if (section.SectionName.Equals("English", StringComparison.OrdinalIgnoreCase) ||
-                section.SectionName.Equals("Arabic", StringComparison.OrdinalIgnoreCase) ||
-                section.SectionName.Equals("Software", StringComparison.OrdinalIgnoreCase))
+        var sectionByName = allSections.ToDictionary(
+            section => section.SectionName,
+            StringComparer.OrdinalIgnoreCase);
+        var filteredSections = requiredSections
+            .Where(sectionByName.ContainsKey)
+            .Select(sectionName =>
             {
-                filteredSections.Add(section);
-            }
-            // Handle Math sections based on school type
-            else if (section.SectionName.Equals("MathEN", StringComparison.OrdinalIgnoreCase))
-            {
-                if (schoolType == "لغات")
+                var section = sectionByName[sectionName];
+                return new
                 {
-                    filteredSections.Add(section);
-                }
-            }
-            else if (section.SectionName.Equals("MathAR", StringComparison.OrdinalIgnoreCase))
-            {
-                if (schoolType == "عربي")
-                {
-                    filteredSections.Add(section);
-                }
-            }
-        }
+                    section.Id,
+                    section.SectionName,
+                    questionCount = section.ExamQuestions.Count,
+                    requiredQuestionCount = settings.QuestionsPerSection,
+                    isReady = settings.RequireFullQuestionSet != 0
+                        ? section.ExamQuestions.Count >= settings.QuestionsPerSection
+                        : section.ExamQuestions.Count > 0
+                };
+            })
+            .ToList();
 
         return Ok(new
         {
             schoolType = schoolType,
+            examDurationMinutes = settings.ExamDurationMinutes,
+            examStartedAtUtc = timing.StartedAtUtc,
+            examEndsAtUtc = timing.EndsAtUtc,
+            remainingSeconds = Math.Max(
+                0,
+                (int)Math.Ceiling((timing.EndsAtUtc - DateTimeOffset.UtcNow).TotalSeconds)),
+            settingsVersion = settings.VersionNumber,
             sections = filteredSections
         });
     }
@@ -194,25 +214,26 @@ public class ExamController : ControllerBase
         if (student == null)
             return NotFound("Student not found");
 
+        if (await db.StudentExamAnswers.AnyAsync(answer => answer.AccountId == student.Id))
+            return Conflict("Student has already completed the exam.");
+
+        var timing = await _settingsService.StartOrResumeExamAsync(student.Id);
+        var settings = timing.Settings;
+
         // Determine actual section name based on school type
         var actualSectionName = sectionName;
         if (sectionName.Equals("Math", StringComparison.OrdinalIgnoreCase))
         {
-            if (student.AdmissionProfile?.PreviousSchoolType == "عربي")
-                actualSectionName = "MathAR";
-            else if (student.AdmissionProfile?.PreviousSchoolType == "لغات")
-                actualSectionName = "MathEN";
-            else
-                actualSectionName = "MathEN"; // Default to MathEN
+            actualSectionName = ExamScoring.ResolveMathSection(
+                student.AdmissionProfile?.PreviousSchoolType);
+            if (actualSectionName == null)
+                return BadRequest("Invalid or missing school type.");
         }
-        else if (sectionName.Equals("MathEN", StringComparison.OrdinalIgnoreCase))
-        {
-            actualSectionName = "MathEN";
-        }
-        else if (sectionName.Equals("MathAR", StringComparison.OrdinalIgnoreCase))
-        {
-            actualSectionName = "MathAR";
-        }
+
+        var allowedSections = ExamScoring.GetRequiredSections(
+            student.AdmissionProfile?.PreviousSchoolType);
+        if (!allowedSections.Contains(actualSectionName, StringComparer.OrdinalIgnoreCase))
+            return BadRequest($"Section '{actualSectionName}' is not available for this student.");
 
         // Get section with questions
         var section = await db.Sections
@@ -222,10 +243,17 @@ public class ExamController : ControllerBase
         if (section == null)
             return NotFound($"Section '{actualSectionName}' not found");
 
-        // Randomize and take 10 questions
+        var availableQuestionCount = section.ExamQuestions.Count;
+        if (availableQuestionCount == 0)
+            return BadRequest($"Section '{actualSectionName}' has no available questions.");
+
+        if (settings.RequireFullQuestionSet != 0 && availableQuestionCount < settings.QuestionsPerSection)
+            return BadRequest($"Section '{actualSectionName}' has only {availableQuestionCount} questions. Required: {settings.QuestionsPerSection}.");
+
+        // Randomize and take the configured number of questions
         var questions = section.ExamQuestions
             .OrderBy(q => Guid.NewGuid()) // randomize
-            .Take(questionsCount)
+            .Take(settings.QuestionsPerSection)
             .Select(q => new
             {
                 q.Id,
@@ -244,7 +272,30 @@ public class ExamController : ControllerBase
             actualSectionName = actualSectionName,
             schoolType = student.AdmissionProfile?.PreviousSchoolType,
             questionCount = questions.Count,
+            requestedQuestionCount = settings.QuestionsPerSection,
+            availableQuestionCount = availableQuestionCount,
             questions = questions
+        });
+    }
+
+    [HttpGet("timing/{nationalId}")]
+    public async Task<IActionResult> GetExamTiming(string nationalId)
+    {
+        var student = await _studentRepo.getStudentByNationalIdWithIncludeAsync(nationalId);
+        if (student == null)
+            return NotFound("Student not found");
+
+        var timing = await _settingsService.GetCurrentExamTimingAsync(student.Id);
+        if (timing == null)
+            return BadRequest("The student has not started an exam session.");
+
+        return Ok(new
+        {
+            examStartedAtUtc = timing.StartedAtUtc,
+            examEndsAtUtc = timing.EndsAtUtc,
+            remainingSeconds = Math.Max(
+                0,
+                (int)Math.Ceiling((timing.EndsAtUtc - DateTimeOffset.UtcNow).TotalSeconds))
         });
     }
 
@@ -262,93 +313,163 @@ public class ExamController : ControllerBase
         if (account == null)
             return NotFound("Student not found");
 
-        // Clear previous answers for this student (if any)
-        var existingAnswers = await db.StudentExamAnswers
-            .Where(sea => sea.AccountId == account.Id)
-            .ToListAsync();
+        if (await db.StudentExamAnswers.AnyAsync(answer => answer.AccountId == account.Id))
+            return Conflict("Student has already completed the exam.");
 
-        if (existingAnswers.Any())
+        if (dto.Answers == null || dto.Answers.Count == 0)
+            return BadRequest("At least one answered question is required before an exam can be submitted.");
+
+        var timing = await _settingsService.GetCurrentExamTimingAsync(account.Id);
+        if (timing == null)
+            return BadRequest("The exam has not been started for this student.");
+
+        var settings = timing.Settings;
+
+        var submittedAnswerByQuestion = dto.Answers
+            .GroupBy(answer => answer.QuestionId)
+            .ToDictionary(group => group.Key, group => group.Last());
+        var submittedQuestionIds = submittedAnswerByQuestion.Keys.ToList();
+        var questionsById = await db.ExamQuestions
+            .Include(question => question.Section)
+            .Where(question => submittedQuestionIds.Contains(question.Id))
+            .ToDictionaryAsync(question => question.Id);
+        var allowedSections = ExamScoring.GetRequiredSections(
+            account.AdmissionProfile?.PreviousSchoolType);
+
+        if (allowedSections.Length == 0)
+            return BadRequest("Invalid or missing school type.");
+
+        if (!questionsById.Values.Any(question => allowedSections.Contains(
+                question.Section.SectionName,
+                StringComparer.OrdinalIgnoreCase)))
         {
-            db.StudentExamAnswers.RemoveRange(existingAnswers);
-            await db.SaveChangesAsync();
+            return BadRequest("The submission does not contain any valid exam answers.");
         }
 
-        var submittedAnswers = new List<StudentExamAnswer>();
-
-        foreach (var answer in dto.Answers)
+        var availableSectionCounts = await db.Sections
+            .Where(section => allowedSections.Contains(section.SectionName))
+            .Select(section => new
+            {
+                section.SectionName,
+                QuestionCount = section.ExamQuestions.Count
+            })
+            .ToDictionaryAsync(
+                section => section.SectionName,
+                section => section.QuestionCount);
+        var unavailableSections = allowedSections
+            .Where(sectionName =>
+            {
+                availableSectionCounts.TryGetValue(sectionName, out var questionCount);
+                return settings.RequireFullQuestionSet != 0
+                    ? questionCount < settings.QuestionsPerSection
+                    : questionCount == 0;
+            })
+            .ToList();
+        if (unavailableSections.Count > 0)
         {
-            var question = await db.ExamQuestions
-                .Include(q => q.Section)
-                .FirstOrDefaultAsync(q => q.Id == answer.QuestionId);
-
-            if (question == null)
+            return BadRequest(new
             {
-                continue;
-            }
+                error = "Exam Not Ready",
+                message = "The exam cannot be submitted because required sections are unavailable.",
+                sections = unavailableSections
+            });
+        }
 
-            // Handle answer comparison - frontend sends indices (0,1,2,3) but DB stores actual text
-            bool isCorrect = false;
+        var invalidSectionSize = questionsById.Values
+            .Where(question => allowedSections.Contains(
+                question.Section.SectionName,
+                StringComparer.OrdinalIgnoreCase))
+            .GroupBy(question => question.Section.SectionName)
+            .Any(section => section.Count() > settings.QuestionsPerSection);
+        if (invalidSectionSize)
+            return BadRequest($"A section cannot contain more than {settings.QuestionsPerSection} submitted answers.");
 
-            if (int.TryParse(answer.ChosenAnswer, out int chosenIndex))
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        try
+        {
+            var existingAnswers = await db.StudentExamAnswers
+                .Where(sea => sea.AccountId == account.Id)
+                .ToListAsync();
+
+            if (existingAnswers.Any())
+                db.StudentExamAnswers.RemoveRange(existingAnswers);
+
+            foreach (var answer in submittedAnswerByQuestion.Values)
             {
-                // Frontend sent a numeric index, convert to actual answer text
-                var actualAnswer = chosenIndex switch
+                if (!questionsById.TryGetValue(answer.QuestionId, out var question) ||
+                    !allowedSections.Contains(question.Section.SectionName, StringComparer.OrdinalIgnoreCase))
+                    continue;
+
+                // Frontend sends an answer index, while the database stores answer text.
+                bool isCorrect;
+
+                if (int.TryParse(answer.ChosenAnswer, out int chosenIndex))
                 {
-                    0 => question.Choice1,
-                    1 => question.Choice2,
-                    2 => question.Choice3,
-                    3 => question.Choice4,
-                    _ => answer.ChosenAnswer
+                    var actualAnswer = chosenIndex switch
+                    {
+                        0 => question.Choice1,
+                        1 => question.Choice2,
+                        2 => question.Choice3,
+                        3 => question.Choice4,
+                        _ => answer.ChosenAnswer
+                    };
+
+                    isCorrect = string.Equals(
+                        actualAnswer?.Trim(),
+                        question.CorrectAnswer?.Trim(),
+                        StringComparison.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    isCorrect = string.Equals(
+                        answer.ChosenAnswer?.Trim(),
+                        question.CorrectAnswer?.Trim(),
+                        StringComparison.OrdinalIgnoreCase);
+                }
+
+                var studentAnswer = new StudentExamAnswer
+                {
+                    AccountId = account.Id,
+                    ExamQuestionId = answer.QuestionId,
+                    ChoosedAnswer = answer.ChosenAnswer,
+                    Score = isCorrect
                 };
 
-                // Compare with correct answer
-                isCorrect = actualAnswer?.Trim().ToLower() == question.CorrectAnswer?.Trim().ToLower();
-
-            }
-            else
-            {
-                // Frontend sent text directly, compare normally
-                isCorrect = answer.ChosenAnswer?.Trim().ToLower() == question.CorrectAnswer?.Trim().ToLower();
+                db.StudentExamAnswers.Add(studentAnswer);
             }
 
-            var studentAnswer = new StudentExamAnswer
+            await db.SaveChangesAsync();
+
+            await CalculateAndUpdateResults(
+                account.Id,
+                account.AdmissionProfile?.PreviousSchoolType,
+                settings);
+
+            var results = await db.StudentExamResults
+                .FirstOrDefaultAsync(r => r.AccountId == account.Id);
+
+            await transaction.CommitAsync();
+
+            return Ok(new
             {
-                AccountId = account.Id,
-                ExamQuestionId = answer.QuestionId,
-                ChoosedAnswer = answer.ChosenAnswer,
-                Score = isCorrect
-            };
-
-            db.StudentExamAnswers.Add(studentAnswer);
-            submittedAnswers.Add(studentAnswer);
+                message = "Answers submitted successfully",
+                totalScore = AdmissionSettingsService.GetExamTotal(results),
+                maxScore = AdmissionSettingsService.GetExamMaximum(settings)
+            });
         }
-
-        await db.SaveChangesAsync();
-
-        // Calculate and update final results
-        await CalculateAndUpdateResults(account.Id);
-
-        // Get the calculated results to return total score
-        var results = await db.StudentExamResults
-            .FirstOrDefaultAsync(r => r.AccountId == account.Id);
-
-        var totalScore = 0;
-        if (results != null)
+        catch
         {
-            totalScore = results.ExamArabicScore + results.ExamEnglishScore + results.ExamMathScore + results.ExamSoftwareScore;
+            await transaction.RollbackAsync();
+            throw;
         }
-
-        return Ok(new
-        {
-            message = "Answers submitted successfully",
-            totalScore = totalScore,
-            maxScore = 60
-        });
     }
 
 
     // Helper method to calculate and update final results
-    private async Task CalculateAndUpdateResults(long accountId)
+    private async Task CalculateAndUpdateResults(
+        long accountId,
+        string? schoolType,
+        HubSettings settings)
     {
         // Get all student answers with Exam and Section
         var studentAnswers = await db.StudentExamAnswers
@@ -357,19 +478,17 @@ public class ExamController : ControllerBase
             .Where(sea => sea.AccountId == accountId)
             .ToListAsync();
 
-        if (!studentAnswers.Any())
-            return;
-
         // Define each Section and the number of questions the student answered for each subject
         var sections = studentAnswers
             .Where(sea => sea.Exam != null && sea.Exam.Section != null)
-            .GroupBy(sea => sea.Exam.Section.SectionName)
+            .GroupBy(
+                sea => sea.Exam.Section.SectionName,
+                StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 g => g.Key,
                 g => new
                 {
-                    CorrectAnswers = g.Count(sea => sea.Score),                          // عدد الإجابات الصح
-                    TotalDisplayed = g.Count()                        // عدد الأسئلة اللي ظهرت للطالب
+                    CorrectAnswers = g.Count(sea => sea.Score)
                 }
             );
 
@@ -381,26 +500,54 @@ public class ExamController : ControllerBase
             db.StudentExamResults.Add(results);
         }
 
-        // Helper method to calculate the score out of 15
-        int CalcScore(string sectionName)
+        var configuredQuestionCount = settings.QuestionsPerSection;
+        var requireFullQuestionSet = settings.RequireFullQuestionSet != 0;
+        var availableQuestionCountRows = await db.Sections
+            .Where(section => ExamScoring.ScoredSectionNames.Contains(section.SectionName))
+            .Select(section => new
+            {
+                section.SectionName,
+                QuestionCount = section.ExamQuestions.Count
+            })
+            .ToListAsync();
+        var availableQuestionCounts = availableQuestionCountRows.ToDictionary(
+            section => section.SectionName,
+            section => section.QuestionCount,
+            StringComparer.OrdinalIgnoreCase);
+
+        int CalcScore(string sectionName, decimal weight)
         {
-            if (!sections.ContainsKey(sectionName) || sections[sectionName].TotalDisplayed == 0)
+            if (!sections.TryGetValue(sectionName, out var sectionResult))
                 return 0;
 
-            var sec = sections[sectionName];
-            return (int)Math.Round((double)sec.CorrectAnswers / questionsCount * 15);
+            availableQuestionCounts.TryGetValue(sectionName, out var availableQuestionCount);
+            var denominator = requireFullQuestionSet
+                ? configuredQuestionCount
+                : Math.Min(availableQuestionCount, configuredQuestionCount);
+
+            return ExamScoring.CalculateSectionScore(
+                sectionResult.CorrectAnswers,
+                denominator,
+                (int)Math.Round(weight));
         }
 
-        // Update scores
-        results.ExamArabicScore = CalcScore("Arabic");
-        results.ExamEnglishScore = CalcScore("English");
+        results.ExamArabicScore = CalcScore(
+            ExamScoring.ArabicSection,
+            settings.ArabicWeight);
+        results.ExamEnglishScore = CalcScore(
+            ExamScoring.EnglishSection,
+            settings.EnglishWeight);
+        results.ExamSoftwareScore = CalcScore(
+            ExamScoring.SoftwareSection,
+            settings.SoftwareWeight);
+        results.ExamIqScore = CalcScore(
+            ExamScoring.IqSection,
+            settings.IqWeight);
 
-        // Math can be MathEN or MathAR depending on the student
-        var mathENScore = CalcScore("MathEN");
-        var mathARScore = CalcScore("MathAR");
-        results.ExamMathScore = mathENScore > 0 ? mathENScore : mathARScore;
-
-        results.ExamSoftwareScore = CalcScore("Software");
+        var mathSection = ExamScoring.ResolveMathSection(schoolType);
+        results.ExamMathScore = mathSection == null
+            ? 0
+            : CalcScore(mathSection, settings.MathWeight);
 
         await db.SaveChangesAsync();
     }
@@ -433,20 +580,31 @@ public class ExamController : ControllerBase
             return NotFound("Student not found.");
 
         // Check if student has already taken exam
-        var existingResult = await db.StudentExamResults
-            .FirstOrDefaultAsync(r => r.AccountId == student.Id);
-
-        if (existingResult != null)
+        if (await db.StudentExamAnswers.AnyAsync(answer => answer.AccountId == student.Id))
             return BadRequest("Student has already completed the exam.");
 
-        // Log the extension request
-        // You might want to create a table to track extension requests
-        // For now, we'll just return success
+        ExamTiming timing;
+        try
+        {
+            timing = await _settingsService.GrantExtensionAsync(student.Id, dto.ExtensionMinutes);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(exception.Message);
+        }
 
         return Ok(new
         {
             message = $"Time extension of {dto.ExtensionMinutes} minutes granted.",
-            extensionMinutes = dto.ExtensionMinutes
+            extensionMinutes = dto.ExtensionMinutes,
+            examEndsAtUtc = timing.EndsAtUtc,
+            remainingSeconds = Math.Max(
+                0,
+                (int)Math.Ceiling((timing.EndsAtUtc - DateTimeOffset.UtcNow).TotalSeconds))
         });
     }
 

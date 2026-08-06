@@ -44,6 +44,23 @@ Update the following in `appsettings.Production.json`:
 
 Set `ASPNETCORE_ENVIRONMENT=Production` in IIS Application Pool or web.config.
 
+## Admission Settings Database Upgrade
+
+Before deploying this application version, run the following SQL script once on the
+target school database:
+
+```text
+server/SchoolAdmission/Database/20260801_AddVersionedAdmissionSettings.sql
+```
+
+The script is transactional and idempotent, so rerunning it is safe. It creates the
+settings history and student assignment tables, seeds the legacy/IQ/current defaults,
+and assigns every applicant that already exists to a historical configuration. It does
+not update any row in `StudentExamResult` and does not recalculate stored marks.
+
+Run the IQ upgrade script first if the target database does not yet contain
+`StudentExamResult.ExamIQScore`.
+
 ## Frontend Deployment
 
 ### 1. Build the Frontend
