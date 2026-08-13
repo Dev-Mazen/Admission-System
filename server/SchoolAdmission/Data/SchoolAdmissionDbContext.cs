@@ -176,23 +176,29 @@ public partial class SchoolAdmissionDbContext : DbContext
                 .HasConstraintName("FK_StudentExamResult_Account");
         });
 
-        modelBuilder.Entity<HubSettings>(entity =>
-        {
-            entity.ToTable("HUB_Settings");
-            entity.HasIndex(e => e.VersionNumber).IsUnique();
-            entity.Property(e => e.VersionName).HasMaxLength(150);
-            entity.Property(e => e.SettingStatusId).HasColumnName("Setting_StatusID");
-            entity.Property(e => e.SchoolExamWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.InterviewWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.PreparatoryCertificateWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.MinistryExamWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.ArabicWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.EnglishWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.MathWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.SoftwareWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.IqWeight).HasColumnType("decimal(6, 2)");
-            entity.Property(e => e.CreatedAtUtc).HasColumnType("datetime2");
-        });
+modelBuilder.Entity<HubSettings>(entity =>
+{
+    entity.ToTable("HUB_Settings");
+
+    entity.HasIndex(e => e.VersionNumber).IsUnique();
+
+    entity.HasIndex(e => e.SettingStatusId, "UX_HUB_Settings_OneActive")
+        .IsUnique()
+        .HasFilter("[Setting_StatusID] = 1");
+
+    entity.Property(e => e.VersionName).HasMaxLength(150);
+    entity.Property(e => e.SettingStatusId).HasColumnName("Setting_StatusID");
+    entity.Property(e => e.SchoolExamWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.InterviewWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.PreparatoryCertificateWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.MinistryExamWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.ArabicWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.EnglishWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.MathWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.SoftwareWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.IqWeight).HasColumnType("decimal(6, 2)");
+    entity.Property(e => e.CreatedAtUtc).HasColumnType("datetime2");
+});
 
         OnModelCreatingPartial(modelBuilder);
     }
