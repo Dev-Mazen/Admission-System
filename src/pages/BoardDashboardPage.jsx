@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +22,7 @@ import {
 } from "../components/ui/Table";
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
+import StudentAgGrid from "../components/StudentAgGrid";
 import { adminAPI } from "../utils/api";
 import {
   buildDashboardAnalytics,
@@ -95,33 +96,33 @@ const BoardDashboardPage = () => {
   const [activeTab, setActiveTab] = useState("charts");
   const [userInfo, setUserInfo] = useState({ fullName: "", role: "" });
   const governorates = [
-    "القاهرة",
-    "الإسكندرية",
-    "الجيزة",
-    "الشرقية",
-    "الغربية",
-    "المنوفية",
-    "القليوبية",
-    "البحيرة",
-    "كفر الشيخ",
-    "دمياط",
-    "الدقهلية",
-    "المنيا",
-    "أسيوط",
-    "سوهاج",
-    "قنا",
-    "الأقصر",
-    "أسوان",
-    "بني سويف",
-    "الفيوم",
-    "الوادي الجديد",
-    "مطروح",
-    "شمال سيناء",
-    "جنوب سيناء",
-    "البحر الأحمر",
-    "بورسعيد",
-    "الإسماعيلية",
-    "السويس",
+    "Ø§Ù„Ù‚Ø§Ù‡Ø±Ø©",
+    "Ø§Ù„Ø¥Ø³ÙƒÙ†Ø¯Ø±ÙŠØ©",
+    "Ø§Ù„Ø¬ÙŠØ²Ø©",
+    "Ø§Ù„Ø´Ø±Ù‚ÙŠØ©",
+    "Ø§Ù„ØºØ±Ø¨ÙŠØ©",
+    "Ø§Ù„Ù…Ù†ÙˆÙÙŠØ©",
+    "Ø§Ù„Ù‚Ù„ÙŠÙˆØ¨ÙŠØ©",
+    "Ø§Ù„Ø¨Ø­ÙŠØ±Ø©",
+    "ÙƒÙØ± Ø§Ù„Ø´ÙŠØ®",
+    "Ø¯Ù…ÙŠØ§Ø·",
+    "Ø§Ù„Ø¯Ù‚Ù‡Ù„ÙŠØ©",
+    "Ø§Ù„Ù…Ù†ÙŠØ§",
+    "Ø£Ø³ÙŠÙˆØ·",
+    "Ø³ÙˆÙ‡Ø§Ø¬",
+    "Ù‚Ù†Ø§",
+    "Ø§Ù„Ø£Ù‚ØµØ±",
+    "Ø£Ø³ÙˆØ§Ù†",
+    "Ø¨Ù†ÙŠ Ø³ÙˆÙŠÙ",
+    "Ø§Ù„ÙÙŠÙˆÙ…",
+    "Ø§Ù„ÙˆØ§Ø¯ÙŠ Ø§Ù„Ø¬Ø¯ÙŠØ¯",
+    "Ù…Ø·Ø±ÙˆØ­",
+    "Ø´Ù…Ø§Ù„ Ø³ÙŠÙ†Ø§Ø¡",
+    "Ø¬Ù†ÙˆØ¨ Ø³ÙŠÙ†Ø§Ø¡",
+    "Ø§Ù„Ø¨Ø­Ø± Ø§Ù„Ø£Ø­Ù…Ø±",
+    "Ø¨ÙˆØ±Ø³Ø¹ÙŠØ¯",
+    "Ø§Ù„Ø¥Ø³Ù…Ø§Ø¹ÙŠÙ„ÙŠØ©",
+    "Ø§Ù„Ø³ÙˆÙŠØ³",
   ];
 
   // Get user info from JWT token
@@ -753,99 +754,6 @@ const BoardDashboardPage = () => {
               </CardContent>
             </Card>
 
-            {/* Sorting and Filtering Controls */}
-            <Card className="border-0 shadow-lg mb-6">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold">Sort</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                  <Button
-                    variant={sortBy === "totalScore" ? "default" : "outline"}
-                    onClick={() => handleSort("totalScore")}
-                    className={`w-full flex items-center justify-center space-x-2 ${sortBy === "totalScore"
-                      ? "bg-[#ef3131] hover:bg-red-600"
-                      : "border-gray-300 hover:border-[#ef3131] hover:text-[#ef3131]"
-                      }`}
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                      />
-                    </svg>
-                    <span>
-                      Total Score{" "}
-                      {sortBy === "totalScore" &&
-                        (sortOrder === "desc" ? "↓" : "↑")}
-                    </span>
-                  </Button>
-
-                  <Button
-                    variant={sortBy === "percentage" ? "default" : "outline"}
-                    onClick={() => handleSort("percentage")}
-                    className={`w-full flex items-center justify-center space-x-2 ${sortBy === "percentage"
-                      ? "bg-[#ef3131] hover:bg-red-600"
-                      : "border-gray-300 hover:border-[#ef3131] hover:text-[#ef3131]"
-                      }`}
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                      />
-                    </svg>
-                    <span>
-                      Percentage{" "}
-                      {sortBy === "percentage" &&
-                        (sortOrder === "desc" ? "↓" : "↑")}
-                    </span>
-                  </Button>
-
-                  <Button
-                    variant={sortBy === "name" ? "default" : "outline"}
-                    onClick={() => handleSort("name")}
-                    className={`w-full flex items-center justify-center space-x-2 ${sortBy === "name"
-                      ? "bg-[#ef3131] hover:bg-red-600"
-                      : "border-gray-300 hover:border-[#ef3131] hover:text-[#ef3131]"
-                      }`}
-                  >
-                    <svg
-                      className="h-4 w-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                      />
-                    </svg>
-                    <span>
-                      Name{" "}
-                      {sortBy === "name" && (sortOrder === "desc" ? "↓" : "↑")}
-                    </span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Students Table */}
             <Card className="border-0 shadow-lg overflow-hidden">
               <CardHeader>
@@ -854,384 +762,13 @@ const BoardDashboardPage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {students.length === 0 && !isLoading && (
-                  <div className="text-center py-8">
-                    <div className="text-gray-500 text-lg mb-2">
-                      {searchTerm || statusFilter !== "all"
-                        ? "No students found matching your criteria"
-                        : "No students found in the system"}
-                    </div>
-                    <div className="text-gray-400 text-sm">
-                      {searchTerm && "Try adjusting your search terms"}
-                      {statusFilter !== "all" &&
-                        "Try selecting a different status filter"}
-                    </div>
-                  </div>
-                )}
-                {students.length > 0 && (
-                  <div className="overflow-x-auto">
-                    <Table className="min-w-full">
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[200px]">
-                            Student Info
-                          </TableHead>
-                          <TableHead className="min-w-[120px]">
-                            Exam Scores
-                          </TableHead>
-                          <TableHead className="min-w-[120px]">
-                            Prep Scores
-                          </TableHead>
-                          <TableHead className="min-w-[100px]">
-                            Interviewer 1
-                          </TableHead>
-                          <TableHead className="min-w-[100px]">
-                            Interviewer 2
-                          </TableHead>
-                          <TableHead className="min-w-[100px]">
-                            Interviewer 3
-                          </TableHead>
-                          <TableHead className="min-w-[100px]">
-                            Total Percentage
-                          </TableHead>
-                          <TableHead className="min-w-[80px]">
-                            Online Training
-                          </TableHead>
-                          <TableHead className="min-w-[80px]">
-                            ICDL License
-                          </TableHead>
-                          <TableHead className="min-w-[80px]">Laptop</TableHead>
-                          <TableHead className="min-w-[100px]">Status</TableHead>
-                          <TableHead className="min-w-[120px]">
-                            Contacts
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {/* student info Data, display students info in a table, first column*/}
-                        {students.map((student) => (
-                          <TableRow key={student.id}>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <div className="font-semibold">
-                                  {student.fullName}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  ID: {student.nationalId}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  City: {student.city}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  District: {student.district}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  Student Phone: {student.phoneNumber}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  Parent Phone:{" "}
-                                  {student.parentPhoneNumber || "N/A"}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {student.email}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  Language: {student.previousSchoolType || "N/A"}
-                                </div>
-                              </div>
-                            </TableCell>
-
-                            {/* exam scores Data, display exam scores in a table, second column*/}
-                            <TableCell>
-                              <div className="space-y-1 text-sm">
-                                <div>Arabic: {student.examArabicScore}/{student.examArabicMaxScore ?? 15}</div>
-                                <div>
-                                  English: {student.examEnglishScore}/
-                                  {student.examEnglishMaxScore ?? (hasIqExamScore(student) ? 30 : 15)}
-                                </div>
-                                <div>
-                                  Math: {student.examMathScore}/
-                                  {student.examMathMaxScore ?? (hasIqExamScore(student) ? 30 : 15)}
-                                </div>
-                                <div>
-                                  Software: {student.examSoftwareScore}/{student.examSoftwareMaxScore ?? 15}
-                                </div>
-                                {hasIqExamScore(student) && (
-                                  <div>IQ: {student.examIqScore}/{student.examIqMaxScore ?? 10}</div>
-                                )}
-                                <div className="font-bold text-blue-600">
-                                  Total: {getExamTotal(student)}/
-                                  {getExamMaximum(student)}
-                                </div>
-                              </div>
-                            </TableCell>
-
-                            {/* prep scores Data, display prep scores in a table, third column*/}
-                            <TableCell>
-                              <div className="space-y-1 text-sm">
-                                <div>Math: {student.mathScore}</div>
-                                <div>English: {student.englishScore}</div>
-                                <div>Prep Score: {student.finalYearScore}</div>
-                                <div>
-                                  Ministry Exam: {student.ministryExamPercentage}%
-                                </div>
-                              </div>
-                            </TableCell>
-
-                            {/* interviewer 1 Data, display interviewer 1 in a table, fourth column*/}
-                            <TableCell>
-                              <div className="space-y-1 text-sm">
-                                {(() => {
-                                  const score = getInterviewScore(student, 0);
-                                  return score ? (
-                                    <div>
-                                      <div className="font-medium">
-                                        {score.admin}
-                                      </div>
-                                      <div className="text-blue-600 font-bold">
-                                        {score.score}/40
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="text-gray-400">
-                                      Not scored
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </TableCell>
-
-                            {/* interviewer 2 Data, display interviewer 2 in a table, fifth column*/}
-                            <TableCell>
-                              <div className="space-y-1 text-sm">
-                                {(() => {
-                                  const score = getInterviewScore(student, 1);
-                                  return score ? (
-                                    <div>
-                                      <div className="font-medium">
-                                        {score.admin}
-                                      </div>
-                                      <div className="text-blue-600 font-bold">
-                                        {score.score}/40
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="text-gray-400">
-                                      Not scored
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </TableCell>
-
-                            {/* interviewer 3 Data, display interviewer 3 in a table, sixth column*/}
-                            <TableCell>
-                              <div className="space-y-1 text-sm">
-                                {(() => {
-                                  const score = getInterviewScore(student, 2);
-                                  return score ? (
-                                    <div>
-                                      <div className="font-medium">
-                                        {score.admin}
-                                      </div>
-                                      <div className="text-blue-600 font-bold">
-                                        {score.score}/40
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="text-gray-400">
-                                      Not scored
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </TableCell>
-
-                            {/* total percentage Data, display total percentage in a table, seventh column*/}
-                            <TableCell>
-                              <div className="font-bold text-blue-600">
-                                {calculatePercentage(student)}%
-                              </div>
-                            </TableCell>
-
-                            {/* online training Data, display online training in a table, eighth column*/}
-                            <TableCell>
-                              <div className="text-sm font-medium">
-                                {student.hasOnlineTrainingCourses ? "Yes" : "No"}
-                              </div>
-                            </TableCell>
-
-                            {/* ICDL License Data, display ICDL License in a table, ninth column*/}
-                            <TableCell>
-                              <div className="text-sm font-medium">
-                                {student.hasICDLLicense ? "Yes" : "No"}
-                              </div>
-                            </TableCell>
-
-                            {/* Laptop Data, display Laptop in a table, tenth column*/}
-                            <TableCell>
-                              <div className="text-sm font-medium">
-                                {student.hasLaptop ? "Yes" : "No"}
-                              </div>
-                            </TableCell>
-
-                            {/* Status Data, display Status in a table, eleventh column*/}
-                            <TableCell>
-                              <div className="flex items-center space-x-2">
-                                <Badge
-                                  variant={
-                                    student.Status === "2" ||
-                                      student.status === "2" ||
-                                      student.status === 2
-                                      ? "success"
-                                      : student.Status === "4" ||
-                                        student.status === "4" ||
-                                        student.status === 4
-                                        ? "warning"
-                                        : student.Status === "3" ||
-                                          student.status === "3" ||
-                                          student.status === 3
-                                          ? "destructive"
-                                          : "secondary"
-                                  }
-                                >
-                                  {student.Status === "1" ||
-                                    student.status === "1" ||
-                                    student.status === 1
-                                    ? "Pending"
-                                    : student.Status === "2" ||
-                                      student.status === "2" ||
-                                      student.status === 2
-                                      ? "Accepted"
-                                      : student.Status === "3" ||
-                                        student.status === "3" ||
-                                        student.status === 3
-                                        ? "Rejected"
-                                        : student.Status === "4" ||
-                                          student.status === "4" ||
-                                          student.status === 4
-                                          ? "Waitlisted"
-                                          : "Pending"}
-                                </Badge>
-                                <button
-                                  onClick={() => {
-                                    // Convert status number to display text
-                                    const getStatusText = (status) => {
-                                      switch (status) {
-                                        case 1:
-                                        case "1":
-                                          return "Pending";
-                                        case 2:
-                                        case "2":
-                                          return "Accepted";
-                                        case 3:
-                                        case "3":
-                                          return "Rejected";
-                                        case 4:
-                                        case "4":
-                                          return "Waitlisted";
-                                        default:
-                                          return "Pending";
-                                      }
-                                    };
-
-                                    const currentStatusText = getStatusText(
-                                      student.Status || student.status
-                                    );
-                                    setSelectedStatus(currentStatusText);
-                                    setPendingStatusChange({
-                                      studentId: student.id,
-                                      studentName: student.fullName,
-                                      oldStatus: currentStatusText,
-                                    });
-                                    setShowStatusConfirmation(true);
-                                  }}
-                                  className="text-gray-400 hover:text-gray-600"
-                                  disabled={isSubmitting}
-                                >
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </TableCell>
-
-                            {/* Contacts Data - combined Contact Student and Contact Parent */}
-                            <TableCell>
-                              <div className="flex flex-col space-y-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    const message = `Hello ${student.fullName}, this is from El-Sewedy School administration. We would like to discuss your application.`;
-                                    // Add +20 country code before the phone number
-                                    const phoneWithCountryCode =
-                                      student.phoneNumber.startsWith("+")
-                                        ? student.phoneNumber
-                                        : `+20${student.phoneNumber}`;
-                                    const whatsappUrl = `https://wa.me/${phoneWithCountryCode}?text=${encodeURIComponent(
-                                      message
-                                    )}`;
-                                    window.open(whatsappUrl, "_blank");
-                                  }}
-                                  className="flex items-center space-x-1 text-green-600 hover:text-green-700"
-                                >
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488" />
-                                  </svg>
-                                  <span>Student</span>
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    const message = `Hello, this is from El-Sewedy School administration. We would like to discuss your child's application.`;
-                                    // Add +20 country code before the parent phone number
-                                    const parentPhoneWithCountryCode =
-                                      student.parentPhoneNumber?.startsWith("+")
-                                        ? student.parentPhoneNumber
-                                        : `+20${student.parentPhoneNumber}`;
-                                    const whatsappUrl = `https://wa.me/${parentPhoneWithCountryCode}?text=${encodeURIComponent(
-                                      message
-                                    )}`;
-                                    window.open(whatsappUrl, "_blank");
-                                  }}
-                                  className="flex items-center space-x-1 text-blue-600 hover:text-blue-700"
-                                  disabled={!student.parentPhoneNumber}
-                                >
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="currentColor"
-                                    viewBox="0 0 24 24"
-                                  >
-                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488" />
-                                  </svg>
-                                  <span>Parent</span>
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
+                <StudentAgGrid
+                  students={students}
+                />
               </CardContent>
             </Card>
+
+
 
             {/* Pagination */}
             {totalItems > 0 && (
