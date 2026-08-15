@@ -34,6 +34,7 @@ import {
 import {
   getExamAdmissionContribution,
   getExamMaximum,
+  getExamPercentage,
   getExamTotal,
   hasIqExamScore,
 } from "../utils/examScoring";
