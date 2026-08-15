@@ -533,7 +533,22 @@ const RegisterStudentPage = () => {
       resetForm(false);
       setError("");
     } catch (err) {
-      setError(err.response?.data || "Failed to register student. Please try again.");
+      const errorData = err.response?.data;
+      let errorMessage = "Failed to register student. Please try again.";
+      
+      if (typeof errorData === "string") {
+        errorMessage = errorData;
+      } else if (errorData?.errors) {
+        errorMessage = Object.values(errorData.errors).flat().join('\n');
+      } else if (errorData?.title) {
+        errorMessage = errorData.title;
+      } else if (errorData?.message) {
+        errorMessage = errorData.message;
+      } else if (errorData) {
+        errorMessage = JSON.stringify(errorData);
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
