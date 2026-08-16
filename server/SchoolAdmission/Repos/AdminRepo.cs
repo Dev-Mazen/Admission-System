@@ -68,23 +68,24 @@ public class AdminRepo : IAdminRepo
             var interviewerAccountIds = await _authRepo.GetAccountIdsByRoleAsync("Interviewer");
             
             var interviewScores = await _db.InterviewScores
-                .Where(i => i.AccountId == s.Id && interviewerAccountIds.Contains(i.InterviewerId))
-                .Join(
-                    _db.Accounts.Where(a => interviewerAccountIds.Contains(a.Id)),
-                    i => i.InterviewerId,
-                    a => a.Id,
-                    (i, a) => new
-                    {
-                        Admin = a.FullNameEn ?? "Unknown Interviewer",
-                        Score = (double)i.Score
-                    })
+                .Where(i => i.AccountId == s.Id)
+                .Select(i => new
+                {
+                    Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Interviewer",
+                    Score = (double)i.Score
+                })
                 .ToListAsync();
 
             var examTotal = await GetExamTotalAsync(examResults);
-            var settings = await _settingsService.GetForStudentAsync(s.Id, examResults);
+            var activeSettings = await _settingsService.GetActiveAsync();
+            var totalPercentage = AdmissionSettingsService.GetTotalPercentage(
+                examResults,
+                admissionProfile,
+                interviewScores.Select(score => (decimal)score.Score),
+                activeSettings);
             var interviewScoreValue = (double)(interviewScore?.Score ?? 0m);
-            var schoolExamContribution = settings.SchoolExamWeight > 0
-                ? AdmissionSettingsService.GetExamPercentage(examResults, settings) * (double)settings.SchoolExamWeight / 100d
+            var schoolExamContribution = activeSettings.SchoolExamWeight > 0
+                ? AdmissionSettingsService.GetExamPercentage(examResults, activeSettings) * (double)activeSettings.SchoolExamWeight / 100d
                 : 0;
             var totalWithInterview = schoolExamContribution + interviewScoreValue;
 
@@ -108,17 +109,19 @@ public class AdminRepo : IAdminRepo
                 ExamArabicScore = examResults?.ExamArabicScore ?? 0,
                 ExamSoftwareScore = examResults?.ExamSoftwareScore ?? 0,
                 ExamIqScore = examResults?.ExamIqScore,
-                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(settings),
-                ExamPercentage = AdmissionSettingsService.GetExamPercentage(examResults, settings),
-                ExamArabicMaxScore = settings.ArabicWeight,
-                ExamEnglishMaxScore = settings.EnglishWeight,
-                ExamMathMaxScore = settings.MathWeight,
-                ExamSoftwareMaxScore = settings.SoftwareWeight,
-                ExamIqMaxScore = settings.IqWeight,
+                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(activeSettings),
+                ExamPercentage = AdmissionSettingsService.GetExamPercentage(examResults, activeSettings),
+                ExamArabicMaxScore = activeSettings.ArabicWeight,
+                ExamEnglishMaxScore = activeSettings.EnglishWeight,
+                ExamMathMaxScore = activeSettings.MathWeight,
+                ExamSoftwareMaxScore = activeSettings.SoftwareWeight,
+                ExamIqMaxScore = activeSettings.IqWeight,
+                ExamTotal = examTotal,
                 InterviewScore = interviewScoreValue,
                 InterviewScores = interviewScores,
                 InterviewPercentage = totalWithInterview,
-                TotalScore = examTotal,
+                TotalScore = examTotal + interviewScores.Sum(i => i.Score),
+                TotalPercentage = Math.Round(totalPercentage, 2),
                 CreatedAt = s.CreatedAt
             });
         }
@@ -389,16 +392,12 @@ public class AdminRepo : IAdminRepo
                     .Select(i => (int?)i.Score)
                     .FirstOrDefault(),
                 InterviewScores = _db.InterviewScores
-                    .Where(i => i.AccountId == s.Id && interviewerAccountIds.Contains(i.InterviewerId))
-                    .Join(
-                        _db.Accounts.Where(a => interviewerAccountIds.Contains(a.Id)),
-                        i => i.InterviewerId,
-                        a => a.Id,
-                        (i, a) => new
-                        {
-                            Admin = a.FullNameEn ?? "Unknown Interviewer",
-                            Score = (double)i.Score
-                        }).ToList(),
+                    .Where(i => i.AccountId == s.Id)
+                    .Select(i => new
+                    {
+                        Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Interviewer",
+                        Score = (double)i.Score
+                    }).ToList(),
                 CreatedAt = s.CreatedAt
             });
 
@@ -437,16 +436,21 @@ public class AdminRepo : IAdminRepo
 
         var activeSettings = await _settingsService.GetActiveAsync();
 
-        // Materialize the final results, including post-materialization sorting for InterviewScore
+        // Materialize the final results, including post-materialization sorting for InterviewScore and TotalPercentage
         var result = pagedStudents.Select(s =>
         {
-            var settings = s.ExamResults != null
-                ? AdmissionSettingsService.GetHistoricalBaseline(s.ExamResults)
-                : activeSettings;
             var examTotal = AdmissionSettingsService.GetExamTotal(s.ExamResults);
-            var examAdmissionContribution = settings.SchoolExamWeight > 0
-                ? AdmissionSettingsService.GetExamPercentage(s.ExamResults, settings) * (double)settings.SchoolExamWeight / 100d
-                : 0;
+            var totalPercentage = AdmissionSettingsService.GetTotalPercentage(
+                s.ExamResults,
+                s.AdmissionProfile != null
+                    ? new AdmissionProfile
+                    {
+                        ThirdPrepScore = s.AdmissionProfile.ThirdPrepScore,
+                        MinistryExamPercentage = s.AdmissionProfile.MinistryExamPercentage
+                    }
+                    : null,
+                s.InterviewScores.Select(score => (decimal)score.Score),
+                activeSettings);
 
             return new
             {
@@ -465,17 +469,18 @@ public class AdminRepo : IAdminRepo
                 ExamSoftwareScore = s.ExamResults?.ExamSoftwareScore ?? 0,
                 ExamArabicScore = s.ExamResults?.ExamArabicScore ?? 0,
                 ExamIqScore = s.ExamResults?.ExamIqScore,
-                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(settings),
-                ExamPercentage = AdmissionSettingsService.GetExamPercentage(s.ExamResults, settings),
-                ExamArabicMaxScore = settings.ArabicWeight,
-                ExamEnglishMaxScore = settings.EnglishWeight,
-                ExamMathMaxScore = settings.MathWeight,
-                ExamSoftwareMaxScore = settings.SoftwareWeight,
-                ExamIqMaxScore = settings.IqWeight,
+                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(activeSettings),
+                ExamPercentage = AdmissionSettingsService.GetExamPercentage(s.ExamResults, activeSettings),
+                ExamArabicMaxScore = activeSettings.ArabicWeight,
+                ExamEnglishMaxScore = activeSettings.EnglishWeight,
+                ExamMathMaxScore = activeSettings.MathWeight,
+                ExamSoftwareMaxScore = activeSettings.SoftwareWeight,
+                ExamIqMaxScore = activeSettings.IqWeight,
                 ExamTotal = examTotal,
                 InterviewScore = s.InterviewScore,
                 InterviewScores = s.InterviewScores,
-                TotalScore = examAdmissionContribution + (s.InterviewScore ?? 0),
+                TotalScore = examTotal + s.InterviewScores.Sum(i => i.Score),
+                TotalPercentage = Math.Round(totalPercentage, 2),
                 HasLaptop = s.AdmissionProfile?.HasLaptop ?? false,
                 CreatedAt = s.CreatedAt
             };
@@ -593,16 +598,12 @@ public class AdminRepo : IAdminRepo
                 HasLaptop = s.AdmissionProfile.HasLaptop,
                 ExamResults = _db.StudentExamResults.FirstOrDefault(ser => ser.AccountId == s.Id),
                 InterviewScores = _db.InterviewScores
-                    .Where(i => i.AccountId == s.Id && interviewerAccountIds.Contains(i.InterviewerId))
-                    .Join(
-                        _db.Accounts.Where(a => interviewerAccountIds.Contains(a.Id)),
-                        i => i.InterviewerId,
-                        a => a.Id,
-                        (i, a) => new
-                        {
-                            Admin = a.FullNameEn ?? "Unknown Interviewer",
-                            Score = (double)i.Score
-                        }).ToList(),
+                    .Where(i => i.AccountId == s.Id)
+                    .Select(i => new
+                    {
+                        Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Interviewer",
+                        Score = (double)i.Score
+                    }).ToList(),
                 CreatedAt = s.CreatedAt
             });
 
@@ -638,9 +639,6 @@ public class AdminRepo : IAdminRepo
         // Materialize the final results, including post-materialization sorting and calculations
         var result = pagedStudents.Select(s =>
         {
-            var settings = s.ExamResults != null
-                ? AdmissionSettingsService.GetHistoricalBaseline(s.ExamResults)
-                : activeSettings;
             var examTotal = AdmissionSettingsService.GetExamTotal(s.ExamResults);
             var totalPercentage = AdmissionSettingsService.GetTotalPercentage(
                 s.ExamResults,
@@ -650,7 +648,7 @@ public class AdminRepo : IAdminRepo
                     MinistryExamPercentage = s.MinistryExamPercentage
                 },
                 s.InterviewScores.Select(score => (decimal)score.Score),
-                settings);
+                activeSettings);
 
             return new
             {
@@ -674,13 +672,13 @@ public class AdminRepo : IAdminRepo
                 ExamSoftwareScore = s.ExamResults?.ExamSoftwareScore ?? 0,
                 ExamArabicScore = s.ExamResults?.ExamArabicScore ?? 0,
                 ExamIqScore = s.ExamResults?.ExamIqScore,
-                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(settings),
-                ExamPercentage = AdmissionSettingsService.GetExamPercentage(s.ExamResults, settings),
-                ExamArabicMaxScore = settings.ArabicWeight,
-                ExamEnglishMaxScore = settings.EnglishWeight,
-                ExamMathMaxScore = settings.MathWeight,
-                ExamSoftwareMaxScore = settings.SoftwareWeight,
-                ExamIqMaxScore = settings.IqWeight,
+                ExamMaxScore = AdmissionSettingsService.GetExamMaximum(activeSettings),
+                ExamPercentage = AdmissionSettingsService.GetExamPercentage(s.ExamResults, activeSettings),
+                ExamArabicMaxScore = activeSettings.ArabicWeight,
+                ExamEnglishMaxScore = activeSettings.EnglishWeight,
+                ExamMathMaxScore = activeSettings.MathWeight,
+                ExamSoftwareMaxScore = activeSettings.SoftwareWeight,
+                ExamIqMaxScore = activeSettings.IqWeight,
                 ExamTotal = examTotal,
                 InterviewScores = s.InterviewScores,
                 TotalScore = examTotal + s.InterviewScores.Sum(i => i.Score),

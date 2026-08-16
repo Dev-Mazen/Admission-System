@@ -7,6 +7,51 @@ import React from 'react';
 import { STATUS_MAP } from './studentGrid.types.js';
 import { adminAPI } from '../../utils/api.js';
 
+// ─── Interview Score Action Cell ───────────────────────────────────────────────
+
+/**
+ * Give / Edit Interview Score button cell.
+ * Calls `onGiveScore(student)` passed via gridContext.
+ */
+export function InterviewScoreActionCell({ data, context }) {
+  if (!data) return null;
+  const onGiveScore = context?.onGiveScore;
+  if (!onGiveScore) return null;
+
+  const hasScore = data.interviewScore != null && data.interviewScore !== 0;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onGiveScore(data); }}
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: hasScore ? '#f59e0b' : '#ef3131',
+          background: hasScore ? 'rgba(245,158,11,0.08)' : 'rgba(239,49,49,0.08)',
+          border: `1px solid ${hasScore ? 'rgba(245,158,11,0.3)' : 'rgba(239,49,49,0.3)'}`,
+          borderRadius: 6,
+          padding: '3px 10px',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = hasScore ? 'rgba(245,158,11,0.18)' : 'rgba(239,49,49,0.18)';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = hasScore ? 'rgba(245,158,11,0.08)' : 'rgba(239,49,49,0.08)';
+        }}
+      >
+        {hasScore ? '✏ Edit Score' : '＋ Give Score'}
+      </button>
+    </div>
+  );
+}
+
+// Note: Total % is calculated by the backend using the latest dbo.HUB_Settings row.
+// The frontend only displays the value sent by the server (TotalPercentage / totalPercentage).
+
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
 /** @param {string|undefined} phone @returns {string} */
@@ -17,24 +62,30 @@ export function buildWaUrl(phone) {
 }
 
 /**
- * Compute exam total from individual scores.
+ * Compute exam total from individual scores or precalculated examTotal.
  * @param {import('./studentGrid.types.js').StudentRow} s
  * @param {((s: any) => number)|undefined} externalFn
  */
 export function computeExamTotal(s, externalFn) {
   if (externalFn) return externalFn(s);
-  return (s.examArabicScore ?? 0) + (s.examEnglishScore ?? 0) +
-         (s.examMathScore ?? 0) + (s.examSoftwareScore ?? 0);
+  if (s?.examTotal != null && !isNaN(Number(s.examTotal))) return Number(s.examTotal);
+  return (Number(s?.examArabicScore) || 0) +
+         (Number(s?.examEnglishScore) || 0) +
+         (Number(s?.examMathScore) || 0) +
+         (Number(s?.examSoftwareScore) || 0) +
+         (Number(s?.examIqScore) || 0);
 }
 
 /**
- * Compute exam maximum.
+ * Compute exam maximum dynamically from student metadata or settings.
  * @param {import('./studentGrid.types.js').StudentRow} s
  * @param {((s: any) => number)|undefined} externalFn
  */
 export function computeExamMax(s, externalFn) {
   if (externalFn) return externalFn(s);
-  return 60;
+  if (s?.examMaxScore != null && !isNaN(Number(s.examMaxScore))) return Number(s.examMaxScore);
+  const hasIq = s?.examIqScore != null && s?.examIqScore !== undefined;
+  return hasIq ? 100 : 60;
 }
 
 // ─── Cell Renderers ───────────────────────────────────────────────────────────
@@ -91,10 +142,82 @@ export function ExamScoreCell({ data, getExamTotal, getExamMaximum }) {
   );
 }
 
-/** Total percentage pill */
-export function TotalPctCell({ data, calculatePercentage }) {
-  if (!data) return null;
-  const pct = calculatePercentage ? calculatePercentage(data) : (data.totalPercentage ?? 0);
+/** Final year preparatory certificate score cell: score / 280 with percentage badge */
+export function PrepFinalCell({ value }) {
+  if (value == null || isNaN(Number(value))) {
+    return <span style={{ color: 'var(--sg-muted)' }}>—</span>;
+  }
+  const score = Number(value);
+  const pct = Math.round((score / 280) * 1000) / 10;
+  const color = pct >= 70 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '100%' }}>
+      <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--sg-text)' }}>
+        {score} <span style={{ color: 'var(--sg-muted)', fontWeight: 400, fontSize: 11 }}>/ 280</span>
+      </span>
+      <span style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color,
+        background: `${color}14`,
+        padding: '1px 5px',
+        borderRadius: 4,
+        border: `1px solid ${color}30`,
+      }}>
+        {pct}%
+      </span>
+    </div>
+  );
+}
+
+/** Interviewer score cell: score / 40 with percentage badge */
+export function InterviewerScoreCell({ value }) {
+  if (value == null || isNaN(Number(value))) {
+    return <span style={{ color: 'var(--sg-muted)' }}>—</span>;
+  }
+  const val = Number(value);
+  const pct = Math.round((val / 40) * 100);
+  const color = pct >= 70 ? '#10b981' : pct >= 45 ? '#f59e0b' : '#ef4444';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: '100%' }}>
+      <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--sg-text)' }}>
+        {val} <span style={{ color: 'var(--sg-muted)', fontWeight: 400, fontSize: 11 }}>/ 40</span>
+      </span>
+      <span style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color,
+        background: `${color}14`,
+        padding: '1px 5px',
+        borderRadius: 4,
+        border: `1px solid ${color}30`,
+      }}>
+        {pct}%
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Read the backend-computed TotalPercentage. No client-side calculation.
+ */
+export function getStudentTotalPercentage(student) {
+  if (!student) return null;
+  const v = student.totalPercentage ??
+            student.TotalPercentage ??
+            student.percentage ??
+            student.Percentage ??
+            student.interviewPercentage ??
+            student.InterviewPercentage;
+  if (v == null || isNaN(Number(v))) return null;
+  return Math.round(Number(v) * 100) / 100;
+}
+
+/** Total percentage pill — displays the server-computed value only */
+export function TotalPctCell({ data, value }) {
+  const raw = value !== undefined && value !== null ? value : getStudentTotalPercentage(data);
+  if (raw === null || raw === undefined || isNaN(Number(raw))) return <span style={{ color: 'var(--sg-muted)' }}>—</span>;
+  const pct = Math.round(Number(raw) * 100) / 100;
   const color = pct >= 70 ? '#10b981' : pct >= 45 ? '#f59e0b' : '#ef4444';
   return (
     <span style={{
@@ -231,10 +354,10 @@ export function getInterviewerScore(s, idx) {
  * Build AG Grid column definitions.
  * Wrapped in useMemo in the parent to avoid re-creation on every render.
  *
- * @param {{ calculatePercentage?: Function; getExamTotal?: Function; getExamMaximum?: Function }} opts
+ * @param {{ getExamTotal?: Function; getExamMaximum?: Function; showInterviewScoreAction?: boolean }} opts
  * @returns {import('ag-grid-community').ColDef[]}
  */
-export function buildColumnDefs({ calculatePercentage, getExamTotal, getExamMaximum } = {}) {
+export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewScoreAction = false } = {}) {
   return [
     // Checkbox selection column next to National ID — pinned left
     {
@@ -296,65 +419,93 @@ export function buildColumnDefs({ calculatePercentage, getExamTotal, getExamMaxi
     },
 
     {
+      colId:         'mathScore',
+      field:         'mathScore',
+      headerName:    'Math Prep',
+      width:         110,
+      sortable:      true,
+      filter:        'agNumberColumnFilter',
+      valueGetter:   (p) => p.data?.mathScore ?? p.data?.MathScore ?? null,
+      valueFormatter: (p) => p.value != null && !isNaN(Number(p.value)) ? Number(p.value).toFixed(1) : '—',
+    },
+
+    {
+      colId:         'englishScore',
+      field:         'englishScore',
+      headerName:    'English Prep',
+      width:         115,
+      sortable:      true,
+      filter:        'agNumberColumnFilter',
+      valueGetter:   (p) => p.data?.englishScore ?? p.data?.EnglishScore ?? null,
+      valueFormatter: (p) => p.value != null && !isNaN(Number(p.value)) ? Number(p.value).toFixed(1) : '—',
+    },
+
+    {
+      colId:         'finalYearScore',
+      field:         'finalYearScore',
+      headerName:    'Final Prep (280)',
+      width:         145,
+      sortable:      true,
+      filter:        'agNumberColumnFilter',
+      valueGetter:   (p) => p.data?.finalYearScore ?? p.data?.FinalYearScore ?? p.data?.thirdPrepScore ?? null,
+      cellRenderer:  (p) => <PrepFinalCell value={p.value} />,
+    },
+
+    {
       colId:         'ministryExamPercentage',
       field:         'ministryExamPercentage',
       headerName:    'Ministry %',
-      width:         120,
+      width:         110,
       filter:        'agNumberColumnFilter',
       sortable:      true,
-      valueFormatter: (p) => p.value != null ? `${p.value}%` : '—',
+      valueGetter:   (p) => p.data?.ministryExamPercentage ?? p.data?.MinistryExamPercentage ?? null,
+      valueFormatter: (p) => p.value != null && !isNaN(Number(p.value)) ? `${Number(p.value).toFixed(1)}%` : '—',
     },
 
     {
       colId:         'interviewer1',
       headerName:    'Interviewer 1',
-      width:         130,
+      width:         140,
       sortable:      true,
       filter:        'agNumberColumnFilter',
       valueGetter:   (p) => getInterviewerScore(p.data, 0),
-      valueFormatter: (p) => p.value != null ? Number(p.value).toFixed(1) : '—',
+      valueFormatter: (p) => p.value != null ? `${p.value}/40 (${Math.round((p.value / 40) * 100)}%)` : '—',
+      cellRenderer:  (p) => <InterviewerScoreCell value={p.value} />,
     },
 
     {
       colId:         'interviewer2',
       headerName:    'Interviewer 2',
-      width:         130,
+      width:         140,
       sortable:      true,
       filter:        'agNumberColumnFilter',
       valueGetter:   (p) => getInterviewerScore(p.data, 1),
-      valueFormatter: (p) => p.value != null ? Number(p.value).toFixed(1) : '—',
+      valueFormatter: (p) => p.value != null ? `${p.value}/40 (${Math.round((p.value / 40) * 100)}%)` : '—',
+      cellRenderer:  (p) => <InterviewerScoreCell value={p.value} />,
     },
 
     {
       colId:         'interviewer3',
       headerName:    'Interviewer 3',
-      width:         130,
+      width:         140,
       sortable:      true,
       filter:        'agNumberColumnFilter',
       valueGetter:   (p) => getInterviewerScore(p.data, 2),
-      valueFormatter: (p) => p.value != null ? Number(p.value).toFixed(1) : '—',
-    },
-
-    {
-      colId:         'interviewScore',
-      field:         'interviewScore',
-      headerName:    'Interview Total',
-      width:         130,
-      sortable:      true,
-      filter:        'agNumberColumnFilter',
-      valueFormatter: (p) => p.value != null ? Number(p.value).toFixed(1) : '—',
+      valueFormatter: (p) => p.value != null ? `${p.value}/40 (${Math.round((p.value / 40) * 100)}%)` : '—',
+      cellRenderer:  (p) => <InterviewerScoreCell value={p.value} />,
     },
 
     {
       colId:         'totalPct',
+      field:         'totalPercentage',
       headerName:    'Total %',
       width:         110,
       sortable:      true,
       filter:        'agNumberColumnFilter',
-      valueGetter:   (p) => p.data ? (calculatePercentage ? calculatePercentage(p.data) : (p.data.totalPercentage ?? 0)) : 0,
-      cellRenderer:  (p) => (
-        <TotalPctCell data={p.data} calculatePercentage={calculatePercentage} />
-      ),
+      // Backend computes TotalPercentage using the latest HUB_Settings row.
+      // Frontend only reads and displays it.
+      valueGetter:   (p) => getStudentTotalPercentage(p.data),
+      cellRenderer:  (p) => <TotalPctCell data={p.data} value={p.value} />,
     },
 
     {
@@ -406,5 +557,18 @@ export function buildColumnDefs({ calculatePercentage, getExamTotal, getExamMaxi
       resizable:    false,
       cellRenderer: (p) => <ContactsCell data={p.data} />,
     },
+
+    // Interview Score action — only visible when showInterviewScoreAction is true
+    ...(showInterviewScoreAction ? [{
+      colId:         'interviewScoreAction',
+      headerName:    'Interview Score',
+      width:         145,
+      sortable:      false,
+      filter:        false,
+      resizable:     false,
+      suppressMovable: true,
+      pinned:        'right',
+      cellRenderer:  (p) => <InterviewScoreActionCell data={p.data} context={p.context} />,
+    }] : []),
   ];
 }

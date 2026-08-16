@@ -21,17 +21,11 @@ public class AdmissionSettingsService
 
     public async Task<HubSettings> GetActiveAsync()
     {
-        var active = await _db.HubSettings
-            .AsNoTracking()
-            .FirstOrDefaultAsync(settings => settings.SettingStatusId == 1);
-
-        if (active != null)
-            return active;
-
-        // Fallback to latest version if no setting has SettingStatusId == 1
+        // Always use the last inserted row (highest Id) — no status filter.
+        // Whenever a new row is inserted it automatically becomes the active config.
         var latest = await _db.HubSettings
             .AsNoTracking()
-            .OrderByDescending(settings => settings.VersionNumber)
+            .OrderByDescending(settings => settings.Id)
             .FirstOrDefaultAsync();
 
         return latest ?? CreateDefaultHubSettings();
@@ -110,16 +104,6 @@ public class AdmissionSettingsService
         long accountId,
         StudentExamResult? result = null)
     {
-        if (result != null)
-            return GetHistoricalBaseline(result);
-
-        var studentResult = await _db.StudentExamResults
-            .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.AccountId == accountId);
-
-        if (studentResult != null)
-            return GetHistoricalBaseline(studentResult);
-
         return await GetActiveAsync();
     }
 
@@ -234,34 +218,50 @@ public class AdmissionSettingsService
     public static double GetTotalPercentage(
         StudentExamResult? result,
         AdmissionProfile? profile,
-        IEnumerable<decimal> interviewScores,
+        IEnumerable<decimal>? interviewScores,
         HubSettings settings)
     {
-        var total = 0d;
+        var scores = interviewScores?.ToList() ?? new List<decimal>();
+        var hasInterviewScores = scores.Count > 0;
 
-        if (settings.SchoolExamWeight > 0)
-            total += GetExamPercentage(result, settings) * (double)settings.SchoolExamWeight / 100d;
+        // Calculate earned scores for the non-interview factors
+        var schoolScore = settings.SchoolExamWeight > 0
+            ? GetExamPercentage(result, settings) * (double)settings.SchoolExamWeight / 100d
+            : 0d;
 
+        var prepScore = settings.PreparatoryCertificateWeight > 0
+            ? (double)((profile?.ThirdPrepScore ?? 0m) * 100m / PreparatoryCertificateMaximum) * (double)settings.PreparatoryCertificateWeight / 100d
+            : 0d;
+
+        var ministryScore = settings.MinistryExamWeight > 0
+            ? (double)(profile?.MinistryExamPercentage ?? 0m) * (double)settings.MinistryExamWeight / 100d
+            : 0d;
+
+        var nonInterviewEarned = schoolScore + prepScore + ministryScore;
+
+        if (!hasInterviewScores)
+        {
+            // When all interviewers are null (no interview score recorded yet),
+            // scale the non-interview weights (e.g. 60% if interview is 40%) to represent 100%.
+            var nonInterviewWeight = (double)(settings.SchoolExamWeight + settings.PreparatoryCertificateWeight + settings.MinistryExamWeight);
+            if (nonInterviewWeight > 0)
+            {
+                return Math.Round((nonInterviewEarned / nonInterviewWeight) * 100d, 2);
+            }
+
+            return 0d;
+        }
+
+        // When interview score(s) have been entered, include the interview weight out of the full 100%
+        var interviewScore = 0d;
         if (settings.InterviewWeight > 0)
         {
-            var interviewPercentage = (double)(interviewScores.Sum() * 100m /
+            var interviewPercentage = (double)(scores.Sum() * 100m /
                 (InterviewScoreMaximum * ExpectedInterviewers));
-            total += interviewPercentage * (double)settings.InterviewWeight / 100d;
+            interviewScore = interviewPercentage * (double)settings.InterviewWeight / 100d;
         }
 
-        if (settings.PreparatoryCertificateWeight > 0)
-        {
-            var preparatoryPercentage = (double)((profile?.ThirdPrepScore ?? 0m) * 100m /
-                PreparatoryCertificateMaximum);
-            total += preparatoryPercentage * (double)settings.PreparatoryCertificateWeight / 100d;
-        }
-
-        if (settings.MinistryExamWeight > 0)
-        {
-            var ministryPercentage = (double)(profile?.MinistryExamPercentage ?? 0m);
-            total += ministryPercentage * (double)settings.MinistryExamWeight / 100d;
-        }
-
+        var total = nonInterviewEarned + interviewScore;
         return Math.Round(total, 2);
     }
 
