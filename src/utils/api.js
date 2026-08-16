@@ -145,6 +145,8 @@ export const adminAPI = {
 export const studentAffairAPI = {
   searchStudent: (nationalId) =>
     api.get(`/student-affair/search-student/${nationalId}`),
+  searchByName: (query) =>
+    api.get("/student-affair/search-by-name", { params: { query } }),
   updateStudent: (nationalId, updateData) =>
     api.put(`/student-affair/update-student/${nationalId}`, updateData),
 };

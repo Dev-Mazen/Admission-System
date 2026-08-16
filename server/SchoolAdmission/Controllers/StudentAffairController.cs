@@ -58,6 +58,26 @@ public class StudentAffairController : ControllerBase
         }
     }
 
+    [HttpGet("search-by-name")]
+    public async Task<IActionResult> SearchByName([FromQuery] string query)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return Ok(new List<object>());
+            }
+
+            var students = await _studentRepo.searchStudentsByNameAsync(query);
+            return Ok(students);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, "An error occurred while searching for students by name.");
+        }
+    }
+
+
     [HttpPut("update-student/{nationalId}")]
     public async Task<IActionResult> UpdateStudent(string nationalId, [FromBody] StudentAffairUpdateDTO dto)
     {
@@ -76,9 +96,31 @@ public class StudentAffairController : ControllerBase
                 return BadRequest(new { errors = validationErrors });
             }
 
+            // Check if National ID is being changed
+            if (!string.IsNullOrWhiteSpace(dto.NationalId) && dto.NationalId != student.NationalId)
+            {
+                var newNationalId = dto.NationalId.Trim();
+
+                var exists = await _studentRepo.studentExistsAsync(newNationalId);
+                if (exists)
+                {
+                    return BadRequest(new { errors = new[] { "A student with this National ID already exists." } });
+                }
+
+                var oldNationalId = student.NationalId;
+                student.NationalId = newNationalId;
+
+                // Update default email format if applicable
+                if (student.Email == $"{oldNationalId}@student.com")
+                {
+                    student.Email = $"{newNationalId}@student.com";
+                }
+            }
+
             // Update only the allowed fields
             if (dto.StudentName != null)
                 student.FullNameEn = dto.StudentName;
+
 
             if (student.AdmissionProfile != null)
             {
@@ -131,6 +173,15 @@ public class StudentAffairController : ControllerBase
     private List<string> ValidateStudentData(StudentAffairUpdateDTO dto)
     {
         var errors = new List<string>();
+
+        // Validate National ID format
+        if (!string.IsNullOrEmpty(dto.NationalId))
+        {
+            if (dto.NationalId.Length != 14 || !dto.NationalId.All(char.IsDigit))
+            {
+                errors.Add("National ID must be exactly 14 digits.");
+            }
+        }
 
         // Validate Date of Birth (student must be under 18)
         if (dto.DateOfBirth.HasValue)

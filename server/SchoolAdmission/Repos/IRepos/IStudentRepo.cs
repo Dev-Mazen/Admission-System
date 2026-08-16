@@ -11,6 +11,7 @@ public interface IStudentRepo : IGenericRepo<Account> {
     Task<bool> studentExistsAsync(string nationalId);
     Task<long> getStudentRoleIdAsync(string roleName);
     Task<IEnumerable<object>> getAllStudentsAsync();
+    Task<IEnumerable<object>> searchStudentsByNameAsync(string query);
 
 
 

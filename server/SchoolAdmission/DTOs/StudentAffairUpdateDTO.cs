@@ -4,6 +4,7 @@ namespace SchoolAdmission.DTOs;
 
 public class StudentAffairUpdateDTO
 {
+    public string? NationalId { get; set; }
     public string? StudentName { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public string? Location { get; set; }

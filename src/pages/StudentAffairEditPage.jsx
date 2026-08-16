@@ -23,6 +23,7 @@ const StudentAffairEditPage = () => {
   const [success, setSuccess] = useState("");
 
   const [formData, setFormData] = useState({
+    nationalId: "",
     studentName: "",
     dateOfBirth: "",
     location: "",
@@ -53,6 +54,7 @@ const StudentAffairEditPage = () => {
 
     const studentData = location.state.studentData;
     setFormData({
+      nationalId: studentData.nationalId || location.state.nationalId || "",
       studentName: studentData.studentName || "",
       dateOfBirth: studentData.dateOfBirth
         ? new Date(studentData.dateOfBirth).toISOString().split("T")[0]
@@ -120,6 +122,10 @@ const StudentAffairEditPage = () => {
   const validateForm = () => {
     const errors = {};
 
+    if (!formData.nationalId) errors.nationalId = "National ID is required";
+    if (formData.nationalId && !/^\d{14}$/.test(formData.nationalId)) {
+      errors.nationalId = "National ID must be exactly 14 digits";
+    }
     if (!formData.studentName) errors.studentName = "Student name is required";
     if (!formData.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
     if (!formData.phoneNumber) errors.phoneNumber = "Phone number is required";
@@ -238,6 +244,11 @@ const StudentAffairEditPage = () => {
         err.response.data.errors.forEach((errorMessage) => {
           // Map error messages to specific fields
           if (
+            errorMessage.includes("National ID") ||
+            errorMessage.includes("national ID")
+          ) {
+            errors.nationalId = errorMessage;
+          } else if (
             errorMessage.includes("age") ||
             errorMessage.includes("Date of Birth")
           ) {
@@ -400,6 +411,36 @@ const StudentAffairEditPage = () => {
                     Personal Information
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label
+                        htmlFor="nationalId"
+                        className="text-base font-medium text-blue-700"
+                      >
+                        National ID *
+                      </Label>
+                      <Input
+                        id="nationalId"
+                        type="text"
+                        value={formData.nationalId}
+                        onChange={(e) =>
+                          handleInputChange(
+                            "nationalId",
+                            e.target.value.replace(/\D/g, "").slice(0, 14)
+                          )
+                        }
+                        placeholder="Enter 14-digit National ID"
+                        className={`mt-2 h-12 text-lg ${
+                          fieldErrors.nationalId ? "border-red-500" : ""
+                        }`}
+                        maxLength={14}
+                      />
+                      {fieldErrors.nationalId && (
+                        <p className="text-red-600 text-sm mt-1">
+                          {fieldErrors.nationalId}
+                        </p>
+                      )}
+                    </div>
+
                     <div>
                       <Label
                         htmlFor="studentName"

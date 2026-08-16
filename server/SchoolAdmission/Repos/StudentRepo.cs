@@ -46,6 +46,35 @@ public class StudentRepo : GenericRepo<Account>, IStudentRepo {
         return students;
     }
 
+    public async Task<IEnumerable<object>> searchStudentsByNameAsync(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return new List<object>();
+
+        var applicantRole = await db.Roles
+            .FirstOrDefaultAsync(r => r.RoleName == "Applicant" && r.BusinessEntity == "Admission");
+
+        if (applicantRole == null)
+            return new List<object>();
+
+        var nameTrimmed = query.Trim();
+
+        var students = await db.Accounts
+            .Where(a => a.RoleId == applicantRole.Id 
+                     && a.IsActive == true 
+                     && (a.FullNameAr.Contains(nameTrimmed) || a.FullNameEn.Contains(nameTrimmed)))
+            .Take(20)
+            .Select(a => new
+            {
+                id = a.Id,
+                fullName = !string.IsNullOrEmpty(a.FullNameAr) ? a.FullNameAr : a.FullNameEn,
+                nationalId = a.NationalId
+            })
+            .ToListAsync();
+
+        return students;
+    }
+
     public async Task<bool> getStudentByEmailAsync(string email){
         var student = await db.Accounts
         .FirstOrDefaultAsync(a => a.Email == email);

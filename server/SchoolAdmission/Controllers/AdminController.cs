@@ -41,8 +41,8 @@ public class AdminController : ControllerBase
         new ExportColumnDefinitionDTO { Key = "SchoolExamSection_SUM_Scores", Label = "Exam Section Sum", Description = "Sum of school exam section scores" },
         new ExportColumnDefinitionDTO { Key = "SchoolExamSection_Count", Label = "Exam Section Count", Description = "Number of school exam sections" },
         new ExportColumnDefinitionDTO { Key = "SchoolExamSection_Scores_AVG%", Label = "Exam Section Avg %", Description = "Average school exam section percentage" },
-        new ExportColumnDefinitionDTO { Key = "ResultAdmission1%", Label = "Result Admission 1 %", Description = "First admission metric" },
-        new ExportColumnDefinitionDTO { Key = "ResultAdmission2%", Label = "Result Admission 2 %", Description = "Second admission metric" }
+        new ExportColumnDefinitionDTO { Key = "ResultAdmission1%", Label = "Result Admission 1 %", Description = "Interview + School exam results percentage" },
+        new ExportColumnDefinitionDTO { Key = "ResultAdmission2%", Label = "Result Admission 2 %", Description = "Overall result admission percentage" }
     };
 
     public AdminController(IAdminRepo adminRepo, IAuthRepo authRepo, SchoolAdmissionDbContext db)
