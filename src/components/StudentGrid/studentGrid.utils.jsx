@@ -404,7 +404,7 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
 
     {
       colId:         'examScore',
-      headerName:    'Exam Score',
+      headerName:    'School Exam Score',
       width:         140,
       sortable:      true,
       filter:        'agNumberColumnFilter',
@@ -511,7 +511,7 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
     {
       colId:         'hasOnlineTrainingCourses',
       field:         'hasOnlineTrainingCourses',
-      headerName:    'Online Training',
+      headerName:    'Courses',
       width:         140,
       filter:        'agSetColumnFilter',
       filterParams:  { values: [true, false] },

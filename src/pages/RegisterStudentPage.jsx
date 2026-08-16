@@ -829,45 +829,25 @@ const RegisterStudentPage = () => {
                   <section className="rounded-xl border border-gray-200 bg-gray-50/60 p-4 md:p-5">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Additional Verification</h3>
 
-                    <div className="mb-4">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          key={`isAcceptanceLetterReceived-${formKey}`}
-                          id="isAcceptanceLetterReceived"
-                          checked={isAcceptanceLetterReceived}
-                          onCheckedChange={(val) => setIsAcceptanceLetterReceived(Boolean(val))}
-                        />
-                        <Label
-                          htmlFor="isAcceptanceLetterReceived"
-                          className="text-base font-medium text-gray-700"
-                        >
-                          Did you receive an acceptance letter?
-                        </Label>
-                      </div>
+                    <div>
+                      <Label htmlFor="ministryExamPercentage" className="text-base font-medium text-gray-700">
+                        Ministry Exam Percentage:
+                      </Label>
+                      <Input
+                        key={`ministryExamPercentage-${formKey}`}
+                        id="ministryExamPercentage"
+                        type="text"
+                        min="0"
+                        max="100"
+                        value={formData.ministryExamPercentage}
+                        onChange={(e) =>
+                          handleDecimalScoreChange("ministryExamPercentage", e.target.value, 100)
+                        }
+                        placeholder="Enter Ministry Exam percentage (0-100)"
+                        className="mt-2 h-11 md:h-12 text-base bg-white"
+                      />
+                      <p className="text-sm text-gray-500 mt-1">Allowed range: 0.00 to 100.00</p>
                     </div>
-
-                    {isAcceptanceLetterReceived && (
-                      <div>
-                        <Label htmlFor="ministryExamPercentage" className="text-base font-medium text-gray-700">
-                          Ministry Exam Percentage:
-                        </Label>
-                        <Input
-                          key={`ministryExamPercentage-${formKey}`}
-                          id="ministryExamPercentage"
-                          type="text"
-                          min="0"
-                          max="100"
-                          value={formData.ministryExamPercentage}
-                          onChange={(e) =>
-                            handleDecimalScoreChange("ministryExamPercentage", e.target.value, 100)
-                          }
-                          placeholder="Enter Ministry Exam percentage (0-100)"
-                          className="mt-2 h-11 md:h-12 text-base bg-white"
-                          required={isAcceptanceLetterReceived}
-                        />
-                        <p className="text-sm text-gray-500 mt-1">Allowed range: 0.00 to 100.00</p>
-                      </div>
-                    )}
                   </section>
 
                   <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
