@@ -362,11 +362,7 @@ export default function StudentGrid({
             rowSelection="multiple"
             suppressRowClickSelection={true}
             // Context — passes callbacks into cell renderers
-            context={{ onGiveScore }}
-            // Pagination
-            pagination
-            paginationPageSize={20}
-            paginationPageSizeSelector={[10, 20, 50, 100]}
+            context={{ onGiveScore, onRefresh }}
             // Callbacks
             onGridReady={onGridReady}
             onSelectionChanged={onSelectionChanged}
