@@ -77,18 +77,11 @@ export const useStudents = () => {
     fetchStudents();
   }, []);
 
-  // Calculate percentage for a student
-  const calculatePercentage = (student) => {
-    if (currentAdminRole === "board") {
-      // For super admin, use the InterviewPercentage from backend
-      return Math.round(student.interviewPercentage || 0);
-    } else {
-      const examContribution = getExamAdmissionContribution(student);
-      const interviewTotal = student.interviewScore || 0;
-
-      const totalScore = examContribution + interviewTotal;
-      return Math.round(totalScore);
-    }
+  // Read backend-computed TotalPercentage for sorting purposes
+  const getBackendPercentage = (student) => {
+    if (!student) return 0;
+    const v = student.totalPercentage ?? student.TotalPercentage;
+    return v != null ? Number(v) : 0;
   };
 
   const filteredStudents = students
@@ -124,8 +117,8 @@ export const useStudents = () => {
           bValue = b.finalYearScore || 0;
           break;
         case "percentage":
-          aValue = calculatePercentage(a);
-          bValue = calculatePercentage(b);
+          aValue = getBackendPercentage(a);
+          bValue = getBackendPercentage(b);
           break;
         case "status":
           aValue = a.status || 1;
@@ -342,7 +335,7 @@ export const useStudents = () => {
     saveScores,
     handleEditInterviewScore,
     saveInterviewScore,
-    calculatePercentage,
+    calculatePercentage: getBackendPercentage,
     updateStudentStatus,
     stats,
     sortBy,

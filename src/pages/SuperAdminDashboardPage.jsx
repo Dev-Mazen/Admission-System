@@ -283,35 +283,7 @@ const SuperAdminDashboardPage = () => {
     }
   };
 
-  const calculatePercentage = (student) => {
-    if (student.totalPercentage !== undefined) {
-      return student.totalPercentage;
-    }
 
-    if (currentAdminRole === "Board") {
-      const examContribution = getExamAdmissionContribution(student);
-
-      // Calculate interview contribution: each score divided by 3
-      let interviewContribution = 0;
-      if (student.interviewScores && Array.isArray(student.interviewScores)) {
-        interviewContribution = student.interviewScores.reduce(
-          (sum, interview) => {
-            return sum + interview.score / 3;
-          },
-          0
-        );
-      }
-
-      const totalScore = examContribution + interviewContribution;
-      return Math.round(totalScore * 100) / 100; // Round to 2 decimal places
-    } else {
-      const examContribution = getExamAdmissionContribution(student);
-      const interviewTotal = student.interviewScore || 0;
-
-      const totalScore = examContribution + interviewTotal;
-      return Math.round(totalScore);
-    }
-  };
 
   // Update student status function
   const updateStudentStatus = async (studentId, status) => {
@@ -809,7 +781,6 @@ const SuperAdminDashboardPage = () => {
               <CardContent>
                 <StudentAgGrid
                   students={students}
-                  calculatePercentage={calculatePercentage}
                   getExamTotal={getExamTotal}
                   getExamMaximum={getExamMaximum}
                   getExamPercentage={getExamPercentage}

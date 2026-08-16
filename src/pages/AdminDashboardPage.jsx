@@ -186,19 +186,7 @@ const AdminDashboardPage = () => {
     }
   }, []);
 
-  // Calculate percentage for a student
-  const calculatePercentage = (student) => {
-    if (currentAdminRole === "board") {
-      // For super admin, use the InterviewPercentage from backend
-      return Math.round(student.interviewPercentage || 0);
-    } else {
-      const examContribution = getExamAdmissionContribution(student);
-      const interviewTotal = student.interviewScore || 0;
 
-      const totalScore = examContribution + interviewTotal;
-      return Math.round(totalScore);
-    }
-  };
 
   // Handle edit scores
   const handleEditScores = (studentId) => {
@@ -231,8 +219,11 @@ const AdminDashboardPage = () => {
     }
   };
 
-  const handleOpenScoreModal = (studentId) => {
-    const student = students.find((s) => s.id === studentId);
+  const handleOpenScoreModal = (studentOrId) => {
+    // Accept either a student object (from AG Grid cell) or an ID (legacy)
+    const student = typeof studentOrId === 'object' && studentOrId !== null
+      ? studentOrId
+      : students.find((s) => s.id === studentOrId);
     if (!student) return;
     setScoreModalStudent(student);
     setScoreInputs({
@@ -631,9 +622,9 @@ const AdminDashboardPage = () => {
               error={error}
               onRefresh={refreshData}
               handleViewStudentDetails={handleViewStudentDetails}
-              calculatePercentage={calculatePercentage}
               getExamTotal={getExamTotal}
               getExamMaximum={getExamMaximum}
+              onGiveScore={handleOpenScoreModal}
             />
           </div>
 

@@ -79,7 +79,6 @@ function useDebounce(value, ms) {
  *   isLoading?: boolean;
  *   error?: string | null;
  *   onRefresh?: () => void;
- *   calculatePercentage?: (s: any) => number;
  *   getExamTotal?: (s: any) => number;
  *   getExamMaximum?: (s: any) => number;
  *   handleViewStudentDetails?: (s: any) => void;
@@ -90,10 +89,10 @@ export default function StudentGrid({
   isLoading = false,
   error = null,
   onRefresh,
-  calculatePercentage,
   getExamTotal,
   getExamMaximum,
   handleViewStudentDetails,
+  onGiveScore,
 }) {
   // ── Theme ─────────────────────────────────────────────────────────────────
   const [theme, setTheme] = useState(LIGHT_THEME);
@@ -174,9 +173,9 @@ export default function StudentGrid({
 
   // ── Column defs ───────────────────────────────────────────────────────────
   const columnDefs = useMemo(
-    () => buildColumnDefs({ calculatePercentage, getExamTotal, getExamMaximum }),
+    () => buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewScoreAction: !!onGiveScore }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []  // callbacks are stable references from parent
+    [!!onGiveScore]  // callbacks are stable references from parent
   );
 
   const defaultColDef = useMemo(() => ({
@@ -362,6 +361,8 @@ export default function StudentGrid({
             // Selection — only via checkbox tick column, NOT by clicking row body
             rowSelection="multiple"
             suppressRowClickSelection={true}
+            // Context — passes callbacks into cell renderers
+            context={{ onGiveScore }}
             // Pagination
             pagination
             paginationPageSize={20}
