@@ -46,6 +46,7 @@ const CompleteStudentInfoPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const navigate = useNavigate();
 
   const requiredChecks = [
@@ -297,9 +298,11 @@ const CompleteStudentInfoPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // If form is read-only, just redirect to home
-    if (isReadOnly) {
-      navigate("/");
+    // If form is read-only or already saved, navigate directly to the exam
+    if (isReadOnly || isSaved) {
+      localStorage.setItem("studentNationalId", formData.nationalId);
+      localStorage.setItem("examToken", "verified");
+      navigate("/get-exam");
       return;
     }
 
@@ -341,7 +344,12 @@ const CompleteStudentInfoPage = () => {
         studentNameEn: formData.studentNameEn,
       });
 
-      setSuccess("تم إكمال المعلومات بنجاح! جاري التوجيه للصفحة الرئيسية...");
+      // Save National ID and exam token so student immediately begins exam
+      localStorage.setItem("studentNationalId", formData.nationalId);
+      localStorage.setItem("examToken", "verified");
+
+      setIsSaved(true);
+      setSuccess("تم حفظ المعلومات بنجاح! جاري الانتقال لبدء الامتحان...");
 
       // Scroll to top of the page
       window.scrollTo({
@@ -349,10 +357,10 @@ const CompleteStudentInfoPage = () => {
         behavior: "smooth",
       });
 
-      // Redirect to home page after a short delay
+      // Redirect to exam page after a short smooth delay
       setTimeout(() => {
-        navigate("/");
-      }, 2000);
+        navigate("/get-exam");
+      }, 1200);
     } catch (err) {
       setError(
         err.response?.data ||
@@ -1095,18 +1103,34 @@ const CompleteStudentInfoPage = () => {
 
                 <Button
                   type="submit"
-                  className="w-full bg-[#ef3131] hover:bg-red-600 h-12 text-lg font-semibold rounded-full"
-                  disabled={isLoading || isReadOnly}
+                  className={`w-full h-12 text-lg font-semibold rounded-full shadow-lg transition-all duration-300 ${
+                    isSaved || isReadOnly
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                      : "bg-[#ef3131] hover:bg-red-600 text-white"
+                  }`}
+                  disabled={isLoading}
                 >
                   {isLoading ? (
-                    <div className="flex items-center">
+                    <div className="flex items-center justify-center">
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      جاري الإكمال...
+                      جاري حفظ المعلومات وتجهيز الامتحان...
+                    </div>
+                  ) : isSaved ? (
+                    <div className="flex items-center justify-center">
+                      <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                      بدء الامتحان (Begin Exam)
                     </div>
                   ) : isReadOnly ? (
-                    "تم إكمال المعلومات مسبقاً"
+                    <div className="flex items-center justify-center">
+                      <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                      بدء الامتحان (Begin Exam)
+                    </div>
                   ) : (
-                    "إكمال المعلومات والمتابعة"
+                    "حفظ المعلومات وبدء الامتحان (Save & Begin Exam)"
                   )}
                 </Button>
               </form>
