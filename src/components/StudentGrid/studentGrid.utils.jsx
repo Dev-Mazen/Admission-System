@@ -3,7 +3,8 @@
  * functions for the StudentGrid. All pure functions — no React state.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
+import { ChevronDown, RefreshCw } from 'lucide-react';
 import { STATUS_MAP } from './studentGrid.types.js';
 import { adminAPI } from '../../utils/api.js';
 
@@ -238,31 +239,114 @@ export function BoolCell({ value }) {
     : <span style={{ color: 'var(--sg-muted)', fontWeight: 400, fontSize: 12 }}>—</span>;
 }
 
-/** Status badge cell renderer */
-export function StatusCell({ data }) {
-  const status = Number(data?.status ?? data?.Status ?? 1);
-  const cfg = STATUS_MAP[status] || STATUS_MAP[1];
+export const STATUS_LOOKUP = {
+  1: { id: 1, name: 'Pending', label: 'Pending', color: '#b45309', bg: '#fef3c7', border: '#fcd34d' },
+  2: { id: 2, name: 'Accepted', label: 'Accepted', color: '#047857', bg: '#d1fae5', border: '#6ee7b7' },
+  3: { id: 3, name: 'Rejected', label: 'Rejected', color: '#b91c1c', bg: '#fee2e2', border: '#fca5a5' },
+  4: { id: 4, name: 'Waitlisted', label: 'Waitlisted', color: '#4338ca', bg: '#e0e7ff', border: '#a5b4fc' },
+};
+
+export function normalizeStatus(raw) {
+  if (raw === null || raw === undefined) return 1;
+  if (typeof raw === 'number' && STATUS_LOOKUP[raw]) return raw;
+  const str = String(raw).trim().toLowerCase();
+  if (str === '2' || str === 'accepted') return 2;
+  if (str === '3' || str === 'rejected') return 3;
+  if (str === '4' || str === 'waitlisted') return 4;
+  return 1;
+}
+
+/** Inline status dropdown — updates in-place, no full grid reload */
+export function StatusDropdownCell({ data, node, context }) {
+  const [saving, setSaving] = useState(false);
+
+  // Read status directly from row data
+  const statusNum = normalizeStatus(data?.status ?? data?.Status);
+  const cfg = STATUS_LOOKUP[statusNum] || STATUS_LOOKUP[1];
+
+  const handleChange = async (e) => {
+    e.stopPropagation();
+    const nextNum = Number(e.target.value);
+    if (nextNum === statusNum || saving) return;
+
+    const nextConfig = STATUS_LOOKUP[nextNum];
+    if (!nextConfig) return;
+
+    // Optimistic update in node data immediately
+    if (node) {
+      node.setDataValue('status', nextNum);
+    }
+    if (data) {
+      data.status = nextNum;
+    }
+
+    setSaving(true);
+    try {
+      const studentId = data.id ?? data.Id;
+      await adminAPI.updateStudentStatus(studentId, nextConfig.name);
+    } catch (err) {
+      console.error('Failed to update student status:', err);
+      // Revert node data on failure
+      if (node) {
+        node.setDataValue('status', statusNum);
+      }
+      if (data) {
+        data.status = statusNum;
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-      <span
-        style={{
-          background: cfg.bg,
-          color: cfg.color,
-          border: `1px solid ${cfg.border}`,
-          borderRadius: 999,
-          padding: '2px 10px',
-          fontSize: 11,
-          fontWeight: 700,
-          lineHeight: 1.4,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 5,
-        }}
-      >
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot }} />
-        {cfg.label}
-      </span>
+      <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+        <select
+          value={statusNum}
+          onChange={handleChange}
+          disabled={saving}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            MozAppearance: 'none',
+            backgroundColor: saving ? '#f3f4f6' : cfg.bg,
+            color: saving ? '#9ca3af' : cfg.color,
+            border: `1.5px solid ${saving ? '#d1d5db' : cfg.border}`,
+            borderRadius: '9999px',
+            padding: '3px 26px 3px 10px',
+            fontSize: '11px',
+            fontWeight: 700,
+            lineHeight: 1.4,
+            cursor: saving ? 'wait' : 'pointer',
+            outline: 'none',
+            transition: 'background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease',
+            minWidth: '112px',
+          }}
+        >
+          <option value={1} style={{ backgroundColor: '#ffffff', color: '#b45309', fontWeight: 600 }}>Pending</option>
+          <option value={2} style={{ backgroundColor: '#ffffff', color: '#047857', fontWeight: 600 }}>Accepted</option>
+          <option value={3} style={{ backgroundColor: '#ffffff', color: '#b91c1c', fontWeight: 600 }}>Rejected</option>
+          <option value={4} style={{ backgroundColor: '#ffffff', color: '#4338ca', fontWeight: 600 }}>Waitlisted</option>
+        </select>
+        <span
+          style={{
+            position: 'absolute',
+            right: '8px',
+            pointerEvents: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: saving ? '#9ca3af' : cfg.color,
+          }}
+        >
+          {saving ? (
+            <RefreshCw size={11} style={{ animation: 'sg-spin 0.7s linear infinite' }} />
+          ) : (
+            <ChevronDown size={12} strokeWidth={2.5} />
+          )}
+        </span>
+      </div>
     </div>
   );
 }
@@ -542,10 +626,11 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
       colId:        'status',
       field:        'status',
       headerName:   'Status',
-      width:        148,
+      width:        155,
       filter:       'agNumberColumnFilter',
       sortable:     true,
-      cellRenderer: (p) => <StatusCell data={p.data} />,
+      suppressMovable: false,
+      cellRenderer: (p) => <StatusDropdownCell data={p.data} node={p.node} api={p.api} context={p.context} />,
     },
 
     {

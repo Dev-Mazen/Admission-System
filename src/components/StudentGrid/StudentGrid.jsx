@@ -362,7 +362,7 @@ export default function StudentGrid({
             rowSelection="multiple"
             suppressRowClickSelection={true}
             // Context — passes callbacks into cell renderers
-            context={{ onGiveScore }}
+            context={{ onGiveScore, onRefresh }}
             // Callbacks
             onGridReady={onGridReady}
             onSelectionChanged={onSelectionChanged}
