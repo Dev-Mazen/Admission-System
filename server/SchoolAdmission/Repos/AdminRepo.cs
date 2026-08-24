@@ -139,7 +139,7 @@ public class AdminRepo : IAdminRepo
         return result;
     }
 
-    public async Task<List<dynamic>> GetStudentsForSuperAdminAsync(string superAdminEmail)
+    public async Task<List<dynamic>> GetStudentsForSuperAdminAsync(string superAdminEmail, DateOnly? fromDate = null, DateOnly? toDate = null)
     {
         var isSuperAdmin = await _authRepo.IsSuperAdminAsync(superAdminEmail);
         var isBoard = await _authRepo.IsBoardAsync(superAdminEmail);
@@ -154,14 +154,20 @@ public class AdminRepo : IAdminRepo
         if (applicantRole == null)
             return new List<dynamic>();
 
-        var students = await _db.Accounts
+        IQueryable<Account> studentsQuery = _db.Accounts
             .Include(a => a.AdmissionProfile)
             .Where(a => a.RoleId == applicantRole.Id && a.IsActive)
+            .Where(a => !fromDate.HasValue || (a.CreatedAt.HasValue && a.CreatedAt.Value >= fromDate.Value))
+            .Where(a => !toDate.HasValue || (a.CreatedAt.HasValue && a.CreatedAt.Value <= toDate.Value))
+            .OrderBy(a => a.CreatedAt)
+            .ThenBy(a => a.Id);
+
+        var studentsList = await studentsQuery
             .ToListAsync();
 
         var result = new List<dynamic>();
 
-        foreach (var s in students)
+        foreach (var s in studentsList)
         {
             var admissionProfile = s.AdmissionProfile;
 
@@ -190,6 +196,8 @@ public class AdminRepo : IAdminRepo
             {
                 s.Id,
                 FullName = s.FullNameEn,
+                FullNameEn = s.FullNameEn,
+                FullNameAr = s.FullNameAr,
                 PhoneNumber = admissionProfile?.PhoneNumber ?? "",
                 ParentPhoneNumber = admissionProfile?.ParentPhoneNumber ?? "",
                 PreviousSchoolType = admissionProfile?.PreviousSchoolType ?? "",

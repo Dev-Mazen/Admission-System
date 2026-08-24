@@ -625,6 +625,7 @@ const AdminDashboardPage = () => {
               getExamTotal={getExamTotal}
               getExamMaximum={getExamMaximum}
               onGiveScore={handleOpenScoreModal}
+              canEditStatus={userInfo.role?.toLowerCase() === "superadmin"}
             />
           </div>
 

@@ -264,12 +264,16 @@ export function normalizeStatus(raw) {
 }
 
 /** Inline status dropdown — updates in-place, no full grid reload */
-export function StatusDropdownCell({ data, node, context }) {
+export function StatusDropdownCell({ data, node, context, editable = false }) {
   const [saving, setSaving] = useState(false);
 
   // Read status directly from row data
   const statusNum = normalizeStatus(data?.status ?? data?.Status);
   const cfg = STATUS_LOOKUP[statusNum] || STATUS_LOOKUP[1];
+
+  if (!editable) {
+    return <span style={{ color: cfg.color, fontWeight: 700, fontSize: 11 }}>{cfg.label}</span>;
+  }
 
   const handleChange = async (e) => {
     e.stopPropagation();
@@ -408,7 +412,9 @@ function getInterviewerItem(s, idx) {
   if (!Array.isArray(arr)) return null;
 
   const roster = s?.interviewerIds ?? s?.InterviewerIds;
-  if (Array.isArray(roster) && roster[idx] != null) {
+  if (Array.isArray(roster)) {
+    if (roster[idx] == null) return null;
+
     const interviewerId = Number(roster[idx]);
     return arr.find((item) => {
       if (!item || typeof item !== 'object') return false;
@@ -448,12 +454,6 @@ export function getInterviewerScore(s, idx) {
     }
   }
 
-  // 3. Fallback: if student has single interviewScore, show it for slot 0
-  if (idx === 0) {
-    const single = s.interviewScore ?? s.InterviewScore;
-    if (single != null && !isNaN(Number(single))) return Number(single);
-  }
-
   return null;
 }
 
@@ -477,10 +477,10 @@ export function getInterviewerName(s, idx) {
  * Build AG Grid column definitions.
  * Wrapped in useMemo in the parent to avoid re-creation on every render.
  *
- * @param {{ getExamTotal?: Function; getExamMaximum?: Function; showInterviewScoreAction?: boolean }} opts
+ * @param {{ getExamTotal?: Function; getExamMaximum?: Function; showInterviewScoreAction?: boolean; canEditStatus?: boolean }} opts
  * @returns {import('ag-grid-community').ColDef[]}
  */
-export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewScoreAction = false } = {}) {
+export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewScoreAction = false, canEditStatus = false } = {}) {
   return [
     // Checkbox selection column next to National ID — pinned left
     {
@@ -515,6 +515,17 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
       minWidth:     200,
       filter:       'agTextColumnFilter',
       cellRenderer: NameCell,
+    },
+
+    {
+      colId:        'createdAt',
+      field:        'createdAt',
+      headerName:   'Created At',
+      width:        125,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => p.data?.createdAt ?? p.data?.CreatedAt ?? null,
+      valueFormatter: (p) => p.value ? String(p.value).slice(0, 10) : '—',
     },
 
     {
@@ -636,7 +647,7 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
     {
       colId:         'totalPct',
       field:         'totalPercentage',
-      headerName:    'Total %',
+      headerName:    'Average %',
       width:         110,
       sortable:      true,
       filter:        'agNumberColumnFilter',
@@ -684,7 +695,7 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
       filter:       'agNumberColumnFilter',
       sortable:     true,
       suppressMovable: false,
-      cellRenderer: (p) => <StatusDropdownCell data={p.data} node={p.node} api={p.api} context={p.context} />,
+      cellRenderer: (p) => <StatusDropdownCell data={p.data} node={p.node} api={p.api} context={p.context} editable={canEditStatus} />,
     },
 
     {

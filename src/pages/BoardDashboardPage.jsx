@@ -91,6 +91,9 @@ const BoardDashboardPage = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportColumns, setExportColumns] = useState([]);
   const [selectedColumns, setSelectedColumns] = useState([]);
+  const [exportFromDate, setExportFromDate] = useState("");
+  const [exportToDate, setExportToDate] = useState("");
+  const [exportStudentCount, setExportStudentCount] = useState("");
   const [isExporting, setIsExporting] = useState(false);
   const [isLoadingColumns, setIsLoadingColumns] = useState(false);
   const [activeTab, setActiveTab] = useState("charts");
@@ -231,7 +234,11 @@ const BoardDashboardPage = () => {
   const handleExportToExcel = async (columnsToInclude = selectedColumns) => {
     try {
       setError("");
-      const response = await adminAPI.exportStudentsToExcel(columnsToInclude);
+      const response = await adminAPI.exportStudentsToExcel(columnsToInclude, {
+        fromDate: exportFromDate || null,
+        toDate: exportToDate || null,
+        studentCount: exportStudentCount ? Number(exportStudentCount) : null,
+      });
 
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1348,6 +1355,43 @@ const BoardDashboardPage = () => {
                     </Button>
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                  <label className="text-sm font-medium text-gray-700">
+                    From date
+                    <input
+                      type="date"
+                      value={exportFromDate}
+                      onChange={(event) => setExportFromDate(event.target.value)}
+                      disabled={isExporting}
+                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </label>
+                  <label className="text-sm font-medium text-gray-700">
+                    To date
+                    <input
+                      type="date"
+                      value={exportToDate}
+                      onChange={(event) => setExportToDate(event.target.value)}
+                      disabled={isExporting}
+                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                    />
+                  </label>
+                </div>
+
+                <label className="block text-sm font-medium text-gray-700 mb-4">
+                  Number of students
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={exportStudentCount}
+                    onChange={(event) => setExportStudentCount(event.target.value)}
+                    placeholder="All students"
+                    disabled={isExporting}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2"
+                  />
+                </label>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[360px] overflow-y-auto pr-1">
                   {exportColumns.map((column) => (
