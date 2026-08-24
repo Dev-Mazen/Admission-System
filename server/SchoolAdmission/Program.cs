@@ -15,7 +15,7 @@ var builder = WebApplication.CreateBuilder(args);
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
 // Get configuration
-var connectionString = builder.Configuration.GetConnectionString("LocalConnection");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 var jwtKey = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]);
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "DefaultIssuer";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "DefaultAudience";

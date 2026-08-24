@@ -21,6 +21,12 @@ public class AdminRepo : IAdminRepo
         _settingsService = settingsService;
     }
 
+    private async Task<List<long>> GetOrderedInterviewerIdsAsync()
+    {
+        var interviewerIds = await _authRepo.GetAccountIdsByRoleAsync("Interviewer");
+        return interviewerIds.OrderBy(id => id).ToList();
+    }
+
     public async Task<List<dynamic>> GetStudentsForAdminAsync(string adminEmail)
     {
         var isInterviewer = await _authRepo.IsInterviewerAsync(adminEmail);
@@ -65,11 +71,11 @@ public class AdminRepo : IAdminRepo
                 .FirstOrDefaultAsync(i => i.AccountId == s.Id && i.InterviewerId == adminAccount.Id);
 
             // Get all interviewer account IDs using the new role resolution logic
-            var interviewerAccountIds = await _authRepo.GetAccountIdsByRoleAsync("Interviewer");
+            var interviewerAccountIds = await GetOrderedInterviewerIdsAsync();
             
             var interviewScores = await _db.InterviewScores
                 .Where(i => i.AccountId == s.Id)
-                .OrderBy(i => _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault())
+                .OrderBy(i => i.InterviewerId)
                 .Select(i => new
                 {
                     InterviewerId = i.InterviewerId,
@@ -122,6 +128,7 @@ public class AdminRepo : IAdminRepo
                 ExamTotal = examTotal,
                 InterviewScore = interviewScoreValue,
                 InterviewScores = interviewScores,
+                InterviewerIds = interviewerAccountIds,
                 InterviewPercentage = totalWithInterview,
                 TotalScore = examTotal + interviewScores.Sum(i => i.Score),
                 TotalPercentage = Math.Round(totalPercentage, 2),
@@ -375,7 +382,7 @@ public class AdminRepo : IAdminRepo
         }
 
         // Get all interviewer account IDs using the new role resolution logic
-        var interviewerAccountIds = await _authRepo.GetAccountIdsByRoleAsync("Interviewer");
+        var interviewerAccountIds = await GetOrderedInterviewerIdsAsync();
 
         // Count the total number of records before pagination and materialization
         var totalCount = await studentsQuery.CountAsync();
@@ -396,7 +403,7 @@ public class AdminRepo : IAdminRepo
                     .FirstOrDefault(),
                 InterviewScores = _db.InterviewScores
                     .Where(i => i.AccountId == s.Id)
-                    .OrderBy(i => _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault())
+                    .OrderBy(i => i.InterviewerId)
                     .Select(i => new
                     {
                         InterviewerId = i.InterviewerId,
@@ -485,6 +492,7 @@ public class AdminRepo : IAdminRepo
                 ExamTotal = examTotal,
                 InterviewScore = s.InterviewScore,
                 InterviewScores = s.InterviewScores,
+                InterviewerIds = interviewerAccountIds,
                 TotalScore = examTotal + s.InterviewScores.Sum(i => i.Score),
                 TotalPercentage = Math.Round(totalPercentage, 2),
                 HasLaptop = s.AdmissionProfile?.HasLaptop ?? false,
@@ -575,7 +583,7 @@ public class AdminRepo : IAdminRepo
         }
 
         // Get all interviewer account IDs using the new role resolution logic
-        var interviewerAccountIds = await _authRepo.GetAccountIdsByRoleAsync("Interviewer");
+        var interviewerAccountIds = await GetOrderedInterviewerIdsAsync();
 
         // Count the total number of records before pagination and materialization
         var totalCount = await studentsQuery.CountAsync();
@@ -605,7 +613,7 @@ public class AdminRepo : IAdminRepo
                 ExamResults = _db.StudentExamResults.FirstOrDefault(ser => ser.AccountId == s.Id),
                 InterviewScores = _db.InterviewScores
                     .Where(i => i.AccountId == s.Id)
-                    .OrderBy(i => _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault())
+                    .OrderBy(i => i.InterviewerId)
                     .Select(i => new
                     {
                         InterviewerId = i.InterviewerId,
@@ -690,6 +698,7 @@ public class AdminRepo : IAdminRepo
                 ExamIqMaxScore = activeSettings.IqWeight,
                 ExamTotal = examTotal,
                 InterviewScores = s.InterviewScores,
+                InterviewerIds = interviewerAccountIds,
                 TotalScore = examTotal + s.InterviewScores.Sum(i => i.Score),
                 TotalPercentage = Math.Round(totalPercentage, 2),
                 s.HasOnlineTrainingCourses,

@@ -344,7 +344,7 @@ public class AdminController : ControllerBase
                 var studentId = (long)student.Id;
                 var interviewScores = await _db.InterviewScores
                     .Where(i => i.AccountId == studentId)
-                    .OrderBy(i => i.Id)
+                    .OrderBy(i => i.InterviewerId)
                     .Select(i => new
                     {
                         Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Unknown Admin",

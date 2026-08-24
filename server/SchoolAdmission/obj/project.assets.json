@@ -4793,23 +4793,23 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Hatem\\.nuget\\packages\\": {},
+    "C:\\Users\\mostafa.hatem\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "E:\\Code-hub\\Systems\\Admission-System\\server\\SchoolAdmission\\SchoolAdmission.csproj",
+      "projectUniqueName": "C:\\Users\\mostafa.hatem\\Admission-System\\server\\SchoolAdmission\\SchoolAdmission.csproj",
       "projectName": "SchoolAdmission",
-      "projectPath": "E:\\Code-hub\\Systems\\Admission-System\\server\\SchoolAdmission\\SchoolAdmission.csproj",
-      "packagesPath": "C:\\Users\\Hatem\\.nuget\\packages\\",
-      "outputPath": "E:\\Code-hub\\Systems\\Admission-System\\server\\SchoolAdmission\\obj\\",
+      "projectPath": "C:\\Users\\mostafa.hatem\\Admission-System\\server\\SchoolAdmission\\SchoolAdmission.csproj",
+      "packagesPath": "C:\\Users\\mostafa.hatem\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\mostafa.hatem\\Admission-System\\server\\SchoolAdmission\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Hatem\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\mostafa.hatem\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],

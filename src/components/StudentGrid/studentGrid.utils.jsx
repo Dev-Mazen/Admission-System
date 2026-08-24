@@ -400,24 +400,39 @@ export function ContactsCell({ data }) {
 }
 
 /**
+ * Find the score record belonging to a fixed interviewer slot.
+ * The roster is required because a missing score must not shift later scores left.
+ */
+function getInterviewerItem(s, idx) {
+  const arr = s?.interviewScores ?? s?.InterviewScores;
+  if (!Array.isArray(arr)) return null;
+
+  const roster = s?.interviewerIds ?? s?.InterviewerIds;
+  if (Array.isArray(roster) && roster[idx] != null) {
+    const interviewerId = Number(roster[idx]);
+    return arr.find((item) => {
+      if (!item || typeof item !== 'object') return false;
+      const itemId = item.interviewerId ?? item.InterviewerId;
+      return itemId != null && Number(itemId) === interviewerId;
+    }) ?? null;
+  }
+
+  return arr[idx] ?? null;
+}
+
+/**
  * Safely extract score for a given interviewer index (0, 1, 2).
- * Scores are now ordered by interviewer email alphabetically from the backend,
- * so index 0 = Interviewer1@..., index 1 = Interviewer2@..., etc.
  * @param {import('./studentGrid.types.js').StudentRow} s
  * @param {number} idx - 0 for slot 1, 1 for slot 2, 2 for slot 3
  */
 export function getInterviewerScore(s, idx) {
   if (!s) return null;
 
-  // 1. Array of interviewScores (primary — backend returns ordered by email)
-  const arr = s.interviewScores ?? s.InterviewScores;
-  if (Array.isArray(arr) && arr.length > idx) {
-    const item = arr[idx];
-    if (typeof item === 'number') return item;
-    if (item && typeof item === 'object') {
-      const val = item.score ?? item.Score ?? item.totalScore ?? item.value ?? item.interviewScore;
-      if (val != null && !isNaN(Number(val))) return Number(val);
-    }
+  const item = getInterviewerItem(s, idx);
+  if (typeof item === 'number') return item;
+  if (item && typeof item === 'object') {
+    const val = item.score ?? item.Score ?? item.totalScore ?? item.value ?? item.interviewScore;
+    if (val != null && !isNaN(Number(val))) return Number(val);
   }
 
   // 2. Direct properties on student object
@@ -449,12 +464,9 @@ export function getInterviewerScore(s, idx) {
  */
 export function getInterviewerName(s, idx) {
   if (!s) return null;
-  const arr = s.interviewScores ?? s.InterviewScores;
-  if (Array.isArray(arr) && arr.length > idx) {
-    const item = arr[idx];
-    if (item && typeof item === 'object') {
-      return item.admin ?? item.Admin ?? item.email ?? item.Email ?? null;
-    }
+  const item = getInterviewerItem(s, idx);
+  if (item && typeof item === 'object') {
+    return item.admin ?? item.Admin ?? item.email ?? item.Email ?? null;
   }
   return null;
 }
@@ -585,7 +597,7 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
         const name = getInterviewerName(p.data, 0);
         return `${p.value}/40${name ? ` · ${name}` : ''}`;
       },
-      headerTooltip: 'Sorted by interviewer email',
+      headerTooltip: 'Mapped by interviewer account',
       cellRenderer:  (p) => <InterviewerScoreCell value={p.value} name={getInterviewerName(p.data, 0)} />,
     },
 
@@ -601,7 +613,7 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
         const name = getInterviewerName(p.data, 1);
         return `${p.value}/40${name ? ` · ${name}` : ''}`;
       },
-      headerTooltip: 'Sorted by interviewer email',
+      headerTooltip: 'Mapped by interviewer account',
       cellRenderer:  (p) => <InterviewerScoreCell value={p.value} name={getInterviewerName(p.data, 1)} />,
     },
 
@@ -617,7 +629,7 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
         const name = getInterviewerName(p.data, 2);
         return `${p.value}/40${name ? ` · ${name}` : ''}`;
       },
-      headerTooltip: 'Sorted by interviewer email',
+      headerTooltip: 'Mapped by interviewer account',
       cellRenderer:  (p) => <InterviewerScoreCell value={p.value} name={getInterviewerName(p.data, 2)} />,
     },
 
