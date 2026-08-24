@@ -16,7 +16,9 @@ ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
 // Get configuration
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-var jwtKey = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]);
+var jwtKeyValue = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key configuration is required.");
+var jwtKey = Encoding.UTF8.GetBytes(jwtKeyValue);
 var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "DefaultIssuer";
 var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "DefaultAudience";
 
