@@ -69,8 +69,11 @@ public class AdminRepo : IAdminRepo
             
             var interviewScores = await _db.InterviewScores
                 .Where(i => i.AccountId == s.Id)
+                .OrderBy(i => _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault())
                 .Select(i => new
                 {
+                    InterviewerId = i.InterviewerId,
+                    Email = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault() ?? "",
                     Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Interviewer",
                     Score = (double)i.Score
                 })
@@ -393,8 +396,11 @@ public class AdminRepo : IAdminRepo
                     .FirstOrDefault(),
                 InterviewScores = _db.InterviewScores
                     .Where(i => i.AccountId == s.Id)
+                    .OrderBy(i => _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault())
                     .Select(i => new
                     {
+                        InterviewerId = i.InterviewerId,
+                        Email = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault() ?? "",
                         Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Interviewer",
                         Score = (double)i.Score
                     }).ToList(),
@@ -599,8 +605,11 @@ public class AdminRepo : IAdminRepo
                 ExamResults = _db.StudentExamResults.FirstOrDefault(ser => ser.AccountId == s.Id),
                 InterviewScores = _db.InterviewScores
                     .Where(i => i.AccountId == s.Id)
+                    .OrderBy(i => _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault())
                     .Select(i => new
                     {
+                        InterviewerId = i.InterviewerId,
+                        Email = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.Email).FirstOrDefault() ?? "",
                         Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Interviewer",
                         Score = (double)i.Score
                     }).ToList(),
