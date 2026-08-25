@@ -525,7 +525,19 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
       sortable:     true,
       filter:       'agTextColumnFilter',
       valueGetter:  (p) => p.data?.createdAt ?? p.data?.CreatedAt ?? null,
-      valueFormatter: (p) => p.value ? String(p.value).slice(0, 10) : '—',
+      valueFormatter: (p) => {
+        if (!p.value) return '—';
+        const date = new Date(p.value);
+        if (Number.isNaN(date.getTime())) return String(p.value);
+        return date.toLocaleString([], {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        });
+      },
     },
 
     {

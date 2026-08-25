@@ -419,6 +419,10 @@ public class AdminRepo : IAdminRepo
                         Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Interviewer",
                         Score = (double)i.Score
                     }).ToList(),
+                ExamStartedAtUtc = _db.StudentExamResults
+                    .Where(result => result.AccountId == s.Id)
+                    .Select(result => result.ExamStartedAtUtc)
+                    .FirstOrDefault(),
                 CreatedAt = s.CreatedAt
             });
 
@@ -504,7 +508,7 @@ public class AdminRepo : IAdminRepo
                 TotalScore = examTotal + s.InterviewScores.Sum(i => i.Score),
                 TotalPercentage = Math.Round(totalPercentage, 2),
                 HasLaptop = s.AdmissionProfile?.HasLaptop ?? false,
-                CreatedAt = s.CreatedAt
+                CreatedAt = s.ExamStartedAtUtc ?? s.CreatedAt?.ToDateTime(TimeOnly.MinValue)
             };
         }).ToList();
 
@@ -629,6 +633,10 @@ public class AdminRepo : IAdminRepo
                         Admin = _db.Accounts.Where(a => a.Id == i.InterviewerId).Select(a => a.FullNameEn).FirstOrDefault() ?? "Interviewer",
                         Score = (double)i.Score
                     }).ToList(),
+                ExamStartedAtUtc = _db.StudentExamResults
+                    .Where(result => result.AccountId == s.Id)
+                    .Select(result => result.ExamStartedAtUtc)
+                    .FirstOrDefault(),
                 CreatedAt = s.CreatedAt
             });
 
@@ -712,7 +720,7 @@ public class AdminRepo : IAdminRepo
                 s.HasOnlineTrainingCourses,
                 s.HasICDLLicense,
                 s.HasLaptop,
-                CreatedAt = s.CreatedAt
+                CreatedAt = s.ExamStartedAtUtc ?? s.CreatedAt?.ToDateTime(TimeOnly.MinValue)
             };
         }).ToList();
 
