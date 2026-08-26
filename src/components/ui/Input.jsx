@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   validateEmail,
   validatePhone,
@@ -39,7 +39,7 @@ const Input = ({
     return "border-gray-200 focus:border-[#ef3131] focus-visible:ring-[#ef3131]";
   };
 
-  const validateField = (value) => {
+  const validateField = useCallback((value) => {
     if (!value && !required) return "";
 
     // Required validation
@@ -90,7 +90,7 @@ const Input = ({
     }
 
     return "";
-  };
+  }, [type, required, validation, min, max]);
 
   useEffect(() => {
     const validationError = validateField(value);
@@ -99,7 +99,7 @@ const Input = ({
     if (onValidationChange) {
       onValidationChange(validationError === "");
     }
-  }, [value, validation, required, type, min, max]);
+  }, [value, onValidationChange, validateField]);
 
   const handleChange = (e) => {
     let newValue = e.target.value;

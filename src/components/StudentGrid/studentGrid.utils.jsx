@@ -264,7 +264,7 @@ export function normalizeStatus(raw) {
 }
 
 /** Inline status dropdown — updates in-place, no full grid reload */
-export function StatusDropdownCell({ data, node, context, editable = false }) {
+export function StatusDropdownCell({ data, node, editable = false }) {
   const [saving, setSaving] = useState(false);
 
   // Read status directly from row data

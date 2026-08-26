@@ -46,11 +46,8 @@ import {
   buildDashboardStats,
 } from "../utils/dashboardAnalytics";
 import {
-  getExamAdmissionContribution,
   getExamMaximum,
-  getExamPercentage,
   getExamTotal,
-  hasIqExamScore,
 } from "../utils/examScoring";
 import StudentDetailsModal from "../components/StudentDetailsModal";
 
@@ -71,8 +68,6 @@ const AdminDashboardPage = () => {
     debouncedSearchTerm,
     statusFilter,
     cityFilter,
-    sortBy,
-    sortOrder,
     currentAdminRole,
     handlePageChange,
     handlePageSizeChange,
@@ -81,20 +76,12 @@ const AdminDashboardPage = () => {
     handleSearch,
     handleStatusFilter,
     handleCityFilter,
-    handleSort,
     refreshData,
     setError,
   } = usePagination();
 
   const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard' for list, 'charts' for stats
 
-  const [editingStudent, setEditingStudent] = useState(null);
-  const [editScores, setEditScores] = useState({
-    softwareInterviewScore: 0,
-    mathInterviewScore: 0,
-    englishInterviewScore: 0,
-    arabicInterviewScore: 0,
-  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showInterviewConfirmation, setShowInterviewConfirmation] =
@@ -187,37 +174,6 @@ const AdminDashboardPage = () => {
   }, []);
 
 
-
-  // Handle edit scores
-  const handleEditScores = (studentId) => {
-    const student = students.find((s) => s.id === studentId);
-    if (student) {
-      setEditingStudent(studentId);
-      setEditScores({
-        softwareInterviewScore: student.examSoftwareScore || 0,
-        mathInterviewScore: student.examMathScore || 0,
-        englishInterviewScore: student.examEnglishScore || 0,
-        arabicInterviewScore: student.examArabicScore || 0,
-      });
-    }
-  };
-
-  // Save scores
-  const saveScores = async () => {
-    if (editingStudent) {
-      try {
-        setIsSubmitting(true);
-        // Note: This would need to be implemented in the backend
-        // For now, we'll just refresh the data
-        refreshData();
-        setEditingStudent(null);
-      } catch {
-        setError("Failed to save scores");
-      } finally {
-        setIsSubmitting(false);
-      }
-    }
-  };
 
   const handleOpenScoreModal = (studentOrId) => {
     // Accept either a student object (from AG Grid cell) or an ID (legacy)

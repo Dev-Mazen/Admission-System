@@ -145,7 +145,7 @@ export default function StudentGrid({
     const vp = getScrollViewport();
     if (!vp) return;
 
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { void 0; }
     dragState.current = { startX: e.clientX, scrollLeft: vp.scrollLeft, pointerId: e.pointerId };
     setIsGrabbing(true);
   }, [getScrollViewport]);
@@ -164,7 +164,7 @@ export default function StudentGrid({
         if (e.currentTarget.hasPointerCapture(dragState.current.pointerId)) {
           e.currentTarget.releasePointerCapture(dragState.current.pointerId);
         }
-      } catch {}
+      } catch { void 0; }
     }
     dragState.current = null;
     setIsGrabbing(false);

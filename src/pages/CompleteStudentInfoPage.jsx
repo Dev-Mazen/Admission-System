@@ -22,6 +22,7 @@ const CompleteStudentInfoPage = () => {
 
   const [formData, setFormData] = useState({
     nationalId: "",
+    studentNameEn: "",
     parentOccupation: "",
     location: "",
     city: "",
@@ -98,6 +99,7 @@ const CompleteStudentInfoPage = () => {
           setFormData((prev) => ({
             ...prev,
             nationalId: nationalId,
+            studentNameEn: studentData.name || "",
             parentOccupation: studentData.parentOccupation || "",
             location: studentData.location || "",
             city: studentData.city || "",
@@ -118,6 +120,7 @@ const CompleteStudentInfoPage = () => {
           setFormData((prev) => ({
             ...prev,
             nationalId: nationalId,
+            studentNameEn: studentData.name || "",
             email: studentData.email || "",
           }));
         }

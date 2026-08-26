@@ -17,7 +17,10 @@ export default defineConfig({
         manualChunks: {
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
-          utils: ['axios', 'jwt-decode']
+          utils: ['axios', 'jwt-decode'],
+          grid: ['ag-grid-community', 'ag-grid-react'],
+          charts: ['recharts'],
+          spreadsheet: ['xlsx'],
         }
       }
     }

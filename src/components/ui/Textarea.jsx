@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const Textarea = ({
   className = "",
@@ -29,7 +29,7 @@ const Textarea = ({
     return "border-gray-200 focus:border-[#ef3131] focus-visible:ring-[#ef3131]";
   };
 
-  const validateField = (value) => {
+  const validateField = useCallback((value) => {
     if (!value && !required) return "";
 
     // Required validation
@@ -60,7 +60,7 @@ const Textarea = ({
     }
 
     return "";
-  };
+  }, [required, validation]);
 
   useEffect(() => {
     const validationError = validateField(value);
@@ -69,7 +69,7 @@ const Textarea = ({
     if (onValidationChange) {
       onValidationChange(validationError === "");
     }
-  }, [value, validation, required]);
+  }, [value, onValidationChange, validateField]);
 
   const handleBlur = () => {
     setIsTouched(true);

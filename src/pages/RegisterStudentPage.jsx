@@ -77,7 +77,7 @@ const evaluateDateOfBirth = (dateValue) => {
 };
 
 const initialFormData = {
-  studentName: "",
+  studentNameAr: "",
   nationalId: "",
   mathScore: "",
   englishScore: "",
@@ -105,7 +105,7 @@ const RegisterStudentPage = () => {
 
   const completionPercent = useMemo(() => {
     const requiredFields = [
-      formData.studentName,
+      formData.studentNameAr,
       formData.nationalId,
       formData.dateOfBirth,
       formData.mathScore,
@@ -352,7 +352,7 @@ const RegisterStudentPage = () => {
     let processedValue = value;
 
     const maxLengths = {
-      studentName: 100,
+      studentNameAr: 100,
     };
 
     if (maxLengths[field] && value.length > maxLengths[field]) {
@@ -427,12 +427,12 @@ const RegisterStudentPage = () => {
   const validateForm = () => {
     const errors = [];
 
-    if (!formData.studentName) errors.push("Student name is required");
+    if (!formData.studentNameAr) errors.push("Arabic student name is required");
     if (!formData.nationalId) errors.push("National ID is required");
     if (!formData.dateOfBirth) errors.push("Date of Birth is required");
 
-    if (formData.studentName && formData.studentName.length > 100) {
-      errors.push("Student name must be less than 100 characters");
+    if (formData.studentNameAr && formData.studentNameAr.length > 100) {
+      errors.push("Arabic student name must be less than 100 characters");
     }
 
     if (
@@ -512,7 +512,7 @@ const RegisterStudentPage = () => {
       const dateOnlyString = dateOfBirth.toISOString().split("T")[0];
 
       const studentData = {
-        studentName: formData.studentName,
+        studentNameAr: formData.studentNameAr,
         nationalId: formData.nationalId,
         mathScore: parseFloat(formData.mathScore),
         englishScore: parseFloat(formData.englishScore),
@@ -669,15 +669,15 @@ const RegisterStudentPage = () => {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Identity</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="studentName" className="text-base font-medium text-gray-700">
+                        <Label htmlFor="studentNameAr" className="text-base font-medium text-gray-700">
                           Student Name In Arabic:
                         </Label>
                         <Input
-                          key={`studentName-${formKey}`}
-                          id="studentName"
-                          value={formData.studentName}
-                          onChange={(e) => handleInputChange("studentName", e.target.value)}
-                          placeholder="Enter student's full name"
+                          key={`studentNameAr-${formKey}`}
+                          id="studentNameAr"
+                          value={formData.studentNameAr}
+                          onChange={(e) => handleInputChange("studentNameAr", e.target.value)}
+                          placeholder="Enter student's full name in Arabic"
                           className="mt-2 h-11 md:h-12 text-base bg-white"
                           validation={{ name: true }}
                           required

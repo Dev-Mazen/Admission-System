@@ -6,6 +6,7 @@ public class StudentAffairUpdateDTO
 {
     public string? NationalId { get; set; }
     public string? StudentName { get; set; }
+    public string? StudentNameAr { get; set; }
     public DateTime? DateOfBirth { get; set; }
     public string? Location { get; set; }
     public string? PhoneNumber { get; set; }
@@ -13,6 +14,7 @@ public class StudentAffairUpdateDTO
     public decimal? MathScore { get; set; }
     public decimal? EnglishScore { get; set; }
     public decimal? ThirdPrepScore { get; set; }
+    public decimal? MinistryExamPercentage { get; set; }
     public string? ParentOccupation { get; set; }
     public string? City { get; set; }
     public string? District { get; set; }

@@ -40,7 +40,9 @@ public class AdmissionSettingsService
         if (result?.ExamStartedAtUtc.HasValue == true)
             return BuildExamTiming(result, activeSettings);
 
-        var startedAtUtc = DateTime.UtcNow;
+        // Using UTC+3 explicitly as requested for Cairo time
+        var egyptTime = DateTime.UtcNow.AddHours(3);
+        var startedAtUtc = egyptTime;
 
         if (result == null)
         {

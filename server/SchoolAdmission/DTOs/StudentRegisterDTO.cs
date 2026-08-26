@@ -6,7 +6,7 @@ namespace SchoolAdmission.DTOs
     public class StudentRegisterDTO
     {
         [Required]
-        public string StudentName { get; set; }
+        public string StudentNameAr { get; set; }
         
         [Required]
         public string NationalId { get; set; }

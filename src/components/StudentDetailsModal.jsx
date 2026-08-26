@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Button from "./ui/Button";
 import { studentAPI } from "../utils/api";
 
@@ -7,13 +7,7 @@ const StudentDetailsModal = ({ student, isOpen, onClose }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (isOpen && student) {
-      loadStudentDetails();
-    }
-  }, [isOpen, student]);
-
-  const loadStudentDetails = async () => {
+  const loadStudentDetails = useCallback(async () => {
     if (!student?.nationalId) return;
     
     setIsLoading(true);
@@ -28,7 +22,13 @@ const StudentDetailsModal = ({ student, isOpen, onClose }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [student]);
+
+  useEffect(() => {
+    if (isOpen && student) {
+      loadStudentDetails();
+    }
+  }, [isOpen, student, loadStudentDetails]);
 
   if (!isOpen) return null;
 

@@ -24,7 +24,8 @@ const StudentAffairEditPage = () => {
 
   const [formData, setFormData] = useState({
     nationalId: "",
-    studentName: "",
+    studentNameEN: "",
+    studentNameAr: "",
     dateOfBirth: "",
     location: "",
     phoneNumber: "",
@@ -32,6 +33,7 @@ const StudentAffairEditPage = () => {
     mathScore: "",
     englishScore: "",
     thirdPrepScore: "",
+    ministryExamPercentage: "",
     parentOccupation: "",
     city: "",
     district: "",
@@ -55,7 +57,8 @@ const StudentAffairEditPage = () => {
     const studentData = location.state.studentData;
     setFormData({
       nationalId: studentData.nationalId || location.state.nationalId || "",
-      studentName: studentData.fullName || studentData.studentName || "",
+      studentNameEN: studentData.fullName || studentData.studentName || studentData.FullName || studentData.StudentName || "",
+      studentNameAr: studentData.studentNameAr || studentData.fullNameAr || studentData.StudentNameAr || studentData.FullNameAr || "",
       dateOfBirth: studentData.dateOfBirth
         ? new Date(studentData.dateOfBirth).toISOString().split("T")[0]
         : "",
@@ -65,6 +68,10 @@ const StudentAffairEditPage = () => {
       mathScore: studentData.mathScore || "",
       englishScore: studentData.englishScore || "",
       thirdPrepScore: studentData.thirdPrepScore || "",
+      ministryExamPercentage:
+        studentData.ministryExamPercentage ??
+        studentData.MinistryExamPercentage ??
+        "",
       parentOccupation: studentData.parentOccupation || "",
       city: studentData.city || "",
       district: studentData.district || "",
@@ -83,7 +90,8 @@ const StudentAffairEditPage = () => {
 
     // Apply max length constraints for text fields
     const maxLengths = {
-      studentName: 100,
+      studentNameEN: 100,
+      studentNameAr: 100,
       parentOccupation: 80,
       location: 200,
       district: 50,
@@ -100,6 +108,7 @@ const StudentAffairEditPage = () => {
       mathScore: { min: 0, max: 60 },
       englishScore: { min: 0, max: 60 },
       thirdPrepScore: { min: 0, max: 280 },
+      ministryExamPercentage: { min: 0, max: 100 },
     };
 
     if (numericConstraints[field]) {
@@ -122,26 +131,16 @@ const StudentAffairEditPage = () => {
   const validateForm = () => {
     const errors = {};
 
-    if (!formData.nationalId) errors.nationalId = "National ID is required";
     if (formData.nationalId && !/^\d{14}$/.test(formData.nationalId)) {
       errors.nationalId = "National ID must be exactly 14 digits";
     }
-    if (!formData.studentName) errors.studentName = "Student name is required";
-    if (!formData.dateOfBirth) errors.dateOfBirth = "Date of birth is required";
-    if (!formData.phoneNumber) errors.phoneNumber = "Phone number is required";
-    if (!formData.parentPhoneNumber)
-      errors.parentPhoneNumber = "Parent phone number is required";
-    if (!formData.parentOccupation)
-      errors.parentOccupation = "Parent occupation is required";
-    if (!formData.location) errors.location = "Location is required";
-    if (!formData.city) errors.city = "City is required";
-    if (!formData.district) errors.district = "District is required";
-    if (!formData.streetName) errors.streetName = "Street name is required";
-    if (!formData.buildingNo) errors.buildingNo = "Building number is required";
 
     // Validate max lengths
-    if (formData.studentName && formData.studentName.length > 100) {
-      errors.studentName = "Student name must be less than 100 characters";
+    if (formData.studentNameEN && formData.studentNameEN.length > 100) {
+      errors.studentNameEN = "English student name must be less than 100 characters";
+    }
+    if (formData.studentNameAr && formData.studentNameAr.length > 100) {
+      errors.studentNameAr = "Arabic student name must be less than 100 characters";
     }
     if (formData.parentOccupation && formData.parentOccupation.length > 80) {
       errors.parentOccupation =
@@ -158,11 +157,6 @@ const StudentAffairEditPage = () => {
     }
     if (formData.buildingNo && formData.buildingNo.length > 20) {
       errors.buildingNo = "Building number must be less than 20 characters";
-    }
-
-    // Validate school type selection
-    if (!formData.isArabicStudy && !formData.isLanguagesStudy) {
-      errors.schoolType = "Please select a previous school type";
     }
 
     return errors;
@@ -193,15 +187,22 @@ const StudentAffairEditPage = () => {
           if (key === "dateOfBirth") {
             updateData[key] = new Date(formData[key]);
           } else if (
-            ["mathScore", "englishScore", "thirdPrepScore"].includes(key)
+            [
+              "mathScore",
+              "englishScore",
+              "thirdPrepScore",
+              "ministryExamPercentage",
+            ].includes(key)
           ) {
             updateData[key] = parseFloat(formData[key]);
           } else if (key === "isArabicStudy" || key === "isLanguagesStudy") {
             // Skip these as we'll handle previousSchoolType separately
             return;
-          } else if (key === "studentName") {
+          } else if (key === "studentNameEN") {
             updateData.fullName = formData[key];
             updateData.studentName = formData[key];
+                          } else if (key === "studentNameAr") {
+                            updateData.studentNameAr = formData[key];
           } else {
             updateData[key] = formData[key];
           }
@@ -262,12 +263,16 @@ const StudentAffairEditPage = () => {
             errors.englishScore = errorMessage;
           } else if (errorMessage.includes("Third prep score")) {
             errors.thirdPrepScore = errorMessage;
+          } else if (errorMessage.includes("Ministry exam percentage")) {
+            errors.ministryExamPercentage = errorMessage;
           } else if (errorMessage.includes("Phone number")) {
             errors.phoneNumber = errorMessage;
           } else if (errorMessage.includes("Parent phone number")) {
             errors.parentPhoneNumber = errorMessage;
+          } else if (errorMessage.includes("Arabic student name")) {
+            errors.studentNameAr = errorMessage;
           } else if (errorMessage.includes("Student name")) {
-            errors.studentName = errorMessage;
+            errors.studentNameEN = errorMessage;
           } else if (errorMessage.includes("Location")) {
             errors.location = errorMessage;
           } else if (errorMessage.includes("City")) {
@@ -446,26 +451,52 @@ const StudentAffairEditPage = () => {
 
                     <div>
                       <Label
-                        htmlFor="studentName"
+                        htmlFor="studentNameEN"
                         className="text-base font-medium text-blue-700"
                       >
-                        Student Name *
+                        Student Name in English
                       </Label>
                       <Input
-                        id="studentName"
+                        id="studentNameEN"
                         type="text"
-                        value={formData.studentName}
+                        value={formData.studentNameEN}
                         onChange={(e) =>
-                          handleInputChange("studentName", e.target.value)
+                          handleInputChange("studentNameEN", e.target.value)
                         }
-                        placeholder="Enter student name"
-                        className={`mt-2 h-12 text-lg ${fieldErrors.studentName ? "border-red-500" : ""
+                        placeholder="Enter English student name"
+                        className={`mt-2 h-12 text-lg ${fieldErrors.studentNameEN ? "border-red-500" : ""
                           }`}
                         maxLength={100}
                       />
-                      {fieldErrors.studentName && (
+                      {fieldErrors.studentNameEN && (
                         <p className="text-red-600 text-sm mt-1">
-                          {fieldErrors.studentName}
+                          {fieldErrors.studentNameEN}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label
+                        htmlFor="studentNameAr"
+                        className="text-base font-medium text-blue-700"
+                      >
+                        Student Name in Arabic
+                      </Label>
+                      <Input
+                        id="studentNameAr"
+                        type="text"
+                        value={formData.studentNameAr}
+                        onChange={(e) =>
+                          handleInputChange("studentNameAr", e.target.value)
+                        }
+                        placeholder="Enter Arabic student name"
+                        className={`mt-2 h-12 text-lg ${fieldErrors.studentNameAr ? "border-red-500" : ""
+                          }`}
+                        maxLength={100}
+                      />
+                      {fieldErrors.studentNameAr && (
+                        <p className="text-red-600 text-sm mt-1">
+                          {fieldErrors.studentNameAr}
                         </p>
                       )}
                     </div>
@@ -805,7 +836,45 @@ const StudentAffairEditPage = () => {
                     </svg>
                     Academic Scores
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div>
+                      <Label
+                        htmlFor="ministryExamPercentage"
+                        className="text-base font-medium text-orange-700"
+                      >
+                        Ministry Exam Percentage
+                      </Label>
+                      <Input
+                        id="ministryExamPercentage"
+                        type="text"
+                        min="0"
+                        max="100"
+                        value={formData.ministryExamPercentage}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (
+                            value === "" ||
+                            value === "." ||
+                            value.endsWith(".") ||
+                            /^\d*\.?\d*$/.test(value)
+                          ) {
+                            const numValue = parseFloat(value);
+                            handleInputChange(
+                              "ministryExamPercentage",
+                              !isNaN(numValue) && numValue > 100 ? "100" : value
+                            );
+                          }
+                        }}
+                        placeholder="0-100"
+                        className={`mt-2 h-12 text-lg ${fieldErrors.ministryExamPercentage ? "border-red-500" : ""}`}
+                      />
+                      {fieldErrors.ministryExamPercentage && (
+                        <p className="text-red-600 text-sm mt-1">
+                          {fieldErrors.ministryExamPercentage}
+                        </p>
+                      )}
+                    </div>
+
                     <div>
                       <Label
                         htmlFor="mathScore"

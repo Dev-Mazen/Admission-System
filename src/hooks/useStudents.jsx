@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { adminAPI } from "../utils/api";
-import { getExamAdmissionContribution } from "../utils/examScoring";
 
 export const useStudents = () => {
   const [students, setStudents] = useState([]);

@@ -5,7 +5,6 @@ import { createContext, useContext, useState, useEffect } from "react";
 const AuthContext = createContext();
 
 // This module intentionally exports the provider and its paired hook.
-// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

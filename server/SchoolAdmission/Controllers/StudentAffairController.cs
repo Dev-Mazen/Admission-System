@@ -32,6 +32,9 @@ public class StudentAffairController : ControllerBase
             {
                 nationalId = student.NationalId,
                 studentName = student.FullNameEn,
+                studentNameAr = student.FullNameAr,
+                fullNameEn = student.FullNameEn,
+                fullNameAr = student.FullNameAr,
                 dateOfBirth = student.AdmissionProfile?.DateOfBirth,
                 location = student.AdmissionProfile?.Location,
                 phoneNumber = student.AdmissionProfile?.PhoneNumber,
@@ -39,6 +42,7 @@ public class StudentAffairController : ControllerBase
                 mathScore = student.AdmissionProfile?.MathScore,
                 englishScore = student.AdmissionProfile?.EnglishScore,
                 thirdPrepScore = student.AdmissionProfile?.ThirdPrepScore,
+                ministryExamPercentage = student.AdmissionProfile?.MinistryExamPercentage,
                 parentOccupation = student.AdmissionProfile?.ParentOccupation,
                 city = student.AdmissionProfile?.City,
                 district = student.AdmissionProfile?.District,
@@ -119,7 +123,14 @@ public class StudentAffairController : ControllerBase
 
             // Update only the allowed fields
             if (dto.StudentName != null)
+            {
                 student.FullNameEn = dto.StudentName;
+                if (student.AdmissionProfile != null)
+                    student.AdmissionProfile.StudentName = dto.StudentName;
+            }
+
+            if (dto.StudentNameAr != null)
+                student.FullNameAr = dto.StudentNameAr;
 
 
             if (student.AdmissionProfile != null)
@@ -138,6 +149,8 @@ public class StudentAffairController : ControllerBase
                     student.AdmissionProfile.EnglishScore = dto.EnglishScore.Value;
                 if (dto.ThirdPrepScore.HasValue)
                     student.AdmissionProfile.ThirdPrepScore = dto.ThirdPrepScore.Value;
+                if (dto.MinistryExamPercentage.HasValue)
+                    student.AdmissionProfile.MinistryExamPercentage = dto.MinistryExamPercentage.Value;
                 if (dto.ParentOccupation != null)
                     student.AdmissionProfile.ParentOccupation = dto.ParentOccupation;
                 if (dto.City != null)
@@ -224,6 +237,12 @@ public class StudentAffairController : ControllerBase
             }
         }
 
+        if (dto.MinistryExamPercentage.HasValue &&
+            (dto.MinistryExamPercentage.Value < 0 || dto.MinistryExamPercentage.Value > 100))
+        {
+            errors.Add("Ministry exam percentage must be between 0 and 100.");
+        }
+
         // Validate Phone Numbers (must be 11 digits)
         if (!string.IsNullOrEmpty(dto.PhoneNumber))
         {
@@ -245,6 +264,16 @@ public class StudentAffairController : ControllerBase
         if (!string.IsNullOrWhiteSpace(dto.StudentName) && string.IsNullOrWhiteSpace(dto.StudentName.Trim()))
         {
             errors.Add("Student name cannot be empty.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.StudentName) && dto.StudentName.Length > 100)
+        {
+            errors.Add("Student name must be less than 100 characters.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.StudentNameAr) && dto.StudentNameAr.Length > 100)
+        {
+            errors.Add("Arabic student name must be less than 100 characters.");
         }
 
         if (!string.IsNullOrWhiteSpace(dto.Location) && string.IsNullOrWhiteSpace(dto.Location.Trim()))

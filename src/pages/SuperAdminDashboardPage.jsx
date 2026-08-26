@@ -32,7 +32,6 @@ import {
   buildDashboardStats,
 } from "../utils/dashboardAnalytics";
 import {
-  getExamAdmissionContribution,
   getExamMaximum,
   getExamPercentage,
   getExamTotal,
@@ -71,8 +70,6 @@ const SuperAdminDashboardPage = () => {
     debouncedSearchTerm,
     statusFilter,
     cityFilter,
-    sortBy,
-    sortOrder,
     currentAdminRole,
     handlePageChange,
     handlePageSizeChange,
@@ -81,7 +78,6 @@ const SuperAdminDashboardPage = () => {
     handleSearch,
     handleStatusFilter,
     handleCityFilter,
-    handleSort,
     refreshData,
     setError,
   } = usePagination();
@@ -167,14 +163,6 @@ const SuperAdminDashboardPage = () => {
       document.body.style.overflow = "unset";
     };
   }, [showStatusConfirmation, showExportModal]);
-
-  const getInterviewScore = (student, interviewerIndex) => {
-    const interviewScores = student.interviewScores || [];
-    if (interviewScores.length > interviewerIndex) {
-      return interviewScores[interviewerIndex];
-    }
-    return null;
-  };
 
   const chartColors = [
     "#ef3131",

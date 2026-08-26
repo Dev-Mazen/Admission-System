@@ -33,13 +33,13 @@ public class ReceptionCoordinatorController : ControllerBase
             {
                 return BadRequest("National ID must be 14 digits.");
             }
-            if (dto.StudentName.Length < 3)
+            if (dto.StudentNameAr.Length < 3)
             {
-                return BadRequest("Student name must be at least 3 characters.");
+                return BadRequest("Arabic student name must be at least 3 characters.");
             }
-            if (dto.StudentName.Length > 100)
+            if (dto.StudentNameAr.Length > 100)
             {
-                return BadRequest("Student name must be less than 100 characters.");
+                return BadRequest("Arabic student name must be less than 100 characters.");
             }
             if (dto.IsAcceptanceLetterReceived && dto.MinistryExamPercentage == 0)
             {
@@ -61,8 +61,8 @@ public class ReceptionCoordinatorController : ControllerBase
             {
                 NationalId = dto.NationalId,
                 Email = $"{dto.NationalId}@student.com",
-                FullNameEn = dto.StudentName,
-                FullNameAr = dto.StudentName,
+                FullNameEn = dto.StudentNameAr,
+                FullNameAr = dto.StudentNameAr,
                 RoleId = roleId,
                 IsActive = true,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NationalId)
@@ -91,7 +91,8 @@ public class ReceptionCoordinatorController : ControllerBase
                 accountId = newStudent.Id,
                 email = newStudent.Email,
                 defaultPassword = dto.NationalId,
-                studentName = dto.StudentName,
+                studentName = dto.StudentNameAr,
+                studentNameAr = dto.StudentNameAr,
                 isAcceptanceLetterReceived = dto.IsAcceptanceLetterReceived,
                 ministryExamPercentage = dto.MinistryExamPercentage
             }, "Student registered successfully"));
