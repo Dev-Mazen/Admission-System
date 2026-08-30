@@ -256,7 +256,24 @@ const SuperAdminDashboardPage = () => {
 
       setSuccessMessage("Excel file downloaded successfully!");
     } catch (err) {
-      setError(err.response?.data || "Failed to export Excel file. Please try again.");
+      const responseData = err.response?.data;
+      let message = "Failed to export Excel file. Please try again.";
+
+      if (responseData instanceof Blob) {
+        const text = await responseData.text();
+        try {
+          const body = JSON.parse(text);
+          message = body.message || body.error || body.details || text || message;
+        } catch {
+          message = text || message;
+        }
+      } else if (typeof responseData === "string") {
+        message = responseData;
+      } else if (responseData?.message || responseData?.error) {
+        message = responseData.message || responseData.error;
+      }
+
+      setError(message);
       throw err;
     }
   };
