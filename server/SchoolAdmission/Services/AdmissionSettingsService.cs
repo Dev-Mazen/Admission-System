@@ -40,9 +40,8 @@ public class AdmissionSettingsService
         if (result?.ExamStartedAtUtc.HasValue == true)
             return BuildExamTiming(result, activeSettings);
 
-        // Using UTC+3 explicitly as requested for Cairo time
-        var egyptTime = DateTime.UtcNow.AddHours(3);
-        var startedAtUtc = egyptTime;
+        // Store as Cairo time (UTC+3) consistently
+        var startedAtUtc = DateTime.UtcNow.AddHours(3);
 
         if (result == null)
         {
@@ -367,13 +366,17 @@ public class AdmissionSettingsService
 
     private static ExamTiming BuildExamTiming(StudentExamResult result, HubSettings settings)
     {
-        var storedStart = result.ExamStartedAtUtc ?? DateTime.UtcNow;
-        var startedAtUtc = new DateTimeOffset(
-            DateTime.SpecifyKind(storedStart, DateTimeKind.Utc));
+        // Stored value is Cairo time (UTC+3) — interpret with correct offset so
+        // AddMinutes(ExamDurationMinutes) gives the right wall-clock duration.
+        // SpecifyKind(Unspecified) is required because EF Core returns DateTime with
+        // DateTimeKind.Utc, and DateTimeOffset rejects a non-zero offset on a Utc-kinded value.
+        var cairoOffset = TimeSpan.FromHours(3);
+        var storedStart = result.ExamStartedAtUtc ?? DateTime.UtcNow.AddHours(3);
+        var startedAt = new DateTimeOffset(DateTime.SpecifyKind(storedStart, DateTimeKind.Unspecified), cairoOffset);
         return new ExamTiming(
             settings,
-            startedAtUtc,
-            startedAtUtc
+            startedAt,
+            startedAt
                 .AddMinutes(settings.ExamDurationMinutes)
                 .AddMinutes(result.ExtensionMinutes ?? 0));
     }
