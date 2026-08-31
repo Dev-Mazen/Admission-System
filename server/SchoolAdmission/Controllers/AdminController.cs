@@ -408,8 +408,8 @@ public class AdminController : ControllerBase
                     SocialId = account.NationalId!,
                     StudentNameArabic = account.FullNameAr,
                     StudentNameEnglish = account.FullNameEn,
-                    CreatedAt = account.StudentExamResult != null
-                        ? account.StudentExamResult.ExamStartedAtUtc
+                    CreatedAt = account.StudentExamResult != null && account.StudentExamResult.ExamStartedAtUtc.HasValue
+                        ? account.StudentExamResult.ExamStartedAtUtc.Value
                         : account.CreatedAt.HasValue
                             ? account.CreatedAt.Value.ToDateTime(TimeOnly.MinValue)
                             : null,
