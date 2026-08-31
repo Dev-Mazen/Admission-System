@@ -535,7 +535,9 @@ public class AdminController : ControllerBase
 
         return key switch
         {
-            "StudentNameEnglish" => GetStringValue(row, "StudName") ?? supplemental?.StudentNameEnglish,
+            // StudName is a legacy stored-procedure field and can contain the Arabic
+            // name. Prefer the account's dedicated English-name field for exports.
+            "StudentNameEnglish" => supplemental?.StudentNameEnglish ?? GetStringValue(row, "StudName"),
             "StudentNameArabic" => supplemental?.StudentNameArabic,
             "CreatedAt" => supplemental?.CreatedAt,
             "City" => supplemental?.City,
