@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { ChevronDown, RefreshCw } from 'lucide-react';
 import { STATUS_MAP } from './studentGrid.types.js';
 import { adminAPI } from '../../utils/api.js';
+import { calculateStudentAge, getAgeParts } from '../../utils/studentProfile.js';
 
 // ─── Interview Score Action Cell ───────────────────────────────────────────────
 
@@ -480,6 +481,18 @@ export function getInterviewerName(s, idx) {
  * @param {{ getExamTotal?: Function; getExamMaximum?: Function; showInterviewScoreAction?: boolean; canEditStatus?: boolean }} opts
  * @returns {import('ag-grid-community').ColDef[]}
  */
+function getFieldValue(data, ...keys) {
+  if (!data) return undefined;
+
+  for (const key of keys) {
+    if (data[key] !== undefined && data[key] !== null && data[key] !== '') {
+      return data[key];
+    }
+  }
+
+  return undefined;
+}
+
 export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewScoreAction = false, canEditStatus = false } = {}) {
   return [
     // Checkbox selection column next to National ID — pinned left
@@ -515,6 +528,130 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
       minWidth:     200,
       filter:       'agTextColumnFilter',
       cellRenderer: NameCell,
+    },
+
+    {
+      colId:        'studentPhoneNumber',
+      field:        'phoneNumber',
+      headerName:   'Student Phone Number',
+      width:        150,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => getFieldValue(p.data, 'phoneNumber', 'PhoneNumber', 'studentPhoneNumber', 'StudentPhoneNumber') ?? '',
+    },
+
+    {
+      colId:        'parentPhoneNumber',
+      field:        'parentPhoneNumber',
+      headerName:   'Parent Phone Number',
+      width:        150,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => getFieldValue(p.data, 'parentPhoneNumber', 'ParentPhoneNumber') ?? '',
+    },
+
+    {
+      colId:        'email',
+      field:        'email',
+      headerName:   'Email',
+      width:        200,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => getFieldValue(p.data, 'email', 'Email') ?? '',
+    },
+
+    {
+      colId:        'dateOfBirthYear',
+      field:        'dateOfBirthYear',
+      headerName:   'Date of Birth - Year',
+      width:        130,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        if (!dob) return '';
+        const date = new Date(dob);
+        return Number.isNaN(date.getTime()) ? '' : date.getFullYear();
+      },
+    },
+
+    {
+      colId:        'dateOfBirthMonth',
+      field:        'dateOfBirthMonth',
+      headerName:   'Date of Birth - Month',
+      width:        150,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        if (!dob) return '';
+        const date = new Date(dob);
+        return Number.isNaN(date.getTime()) ? '' : date.getMonth() + 1;
+      },
+    },
+
+    {
+      colId:        'dateOfBirthDay',
+      field:        'dateOfBirthDay',
+      headerName:   'Date of Birth - Day',
+      width:        130,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        if (!dob) return '';
+        const date = new Date(dob);
+        return Number.isNaN(date.getTime()) ? '' : date.getDate();
+      },
+    },
+
+    {
+      colId:        'ageYears',
+      field:        'ageYears',
+      headerName:   'Age - Years',
+      width:        120,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        return dob ? getAgeParts(dob).years : '';
+      },
+    },
+
+    {
+      colId:        'ageMonths',
+      field:        'ageMonths',
+      headerName:   'Age - Months',
+      width:        130,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        return dob ? getAgeParts(dob).months : '';
+      },
+    },
+
+    {
+      colId:        'ageDays',
+      field:        'ageDays',
+      headerName:   'Age - Days',
+      width:        120,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        return dob ? getAgeParts(dob).days : '';
+      },
+    },
+
+    {
+      colId:        'previousSchoolType',
+      field:        'previousSchoolType',
+      headerName:   'Previous School Type',
+      width:        180,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => getFieldValue(p.data, 'previousSchoolType', 'PreviousSchoolType') ?? '',
     },
 
     {

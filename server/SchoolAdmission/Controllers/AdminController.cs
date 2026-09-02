@@ -30,6 +30,16 @@ public class AdminController : ControllerBase
         new ExportColumnDefinitionDTO { Key = "CreatedAt", Label = "Created At", Description = "Date the student record was created" },
         new ExportColumnDefinitionDTO { Key = "SocialID", Label = "National ID", Description = "National identification number" },
         new ExportColumnDefinitionDTO { Key = "City", Label = "City", Description = "Applicant's city" },
+        new ExportColumnDefinitionDTO { Key = "StudentPhoneNumber", Label = "Student Phone Number", Description = "Applicant's mobile number" },
+        new ExportColumnDefinitionDTO { Key = "ParentPhoneNumber", Label = "Parent Phone Number", Description = "Parent/guardian mobile number" },
+        new ExportColumnDefinitionDTO { Key = "Email", Label = "Email", Description = "Applicant email address" },
+        new ExportColumnDefinitionDTO { Key = "DateOfBirthYear", Label = "Date of Birth - Year", Description = "Applicant birth year" },
+        new ExportColumnDefinitionDTO { Key = "DateOfBirthMonth", Label = "Date of Birth - Month", Description = "Applicant birth month" },
+        new ExportColumnDefinitionDTO { Key = "DateOfBirthDay", Label = "Date of Birth - Day", Description = "Applicant birth day" },
+        new ExportColumnDefinitionDTO { Key = "AgeYears", Label = "Age - Years", Description = "Applicant age in years as of 1 Oct 2026" },
+        new ExportColumnDefinitionDTO { Key = "AgeMonths", Label = "Age - Months", Description = "Applicant age in months remainder as of 1 Oct 2026" },
+        new ExportColumnDefinitionDTO { Key = "AgeDays", Label = "Age - Days", Description = "Applicant age in days remainder as of 1 Oct 2026" },
+        new ExportColumnDefinitionDTO { Key = "PreviousSchoolType", Label = "Previous School Type", Description = "Previous school type or study track" },
         new ExportColumnDefinitionDTO { Key = "SchoolExamScore", Label = "School Exam Score", Description = "Total score across school exam sections" },
         new ExportColumnDefinitionDTO { Key = "MathPrepScore", Label = "Math Prep Score", Description = "Preparatory Math score" },
         new ExportColumnDefinitionDTO { Key = "EnglishPrepScore", Label = "English Prep Score", Description = "Preparatory English score" },
@@ -408,6 +418,18 @@ public class AdminController : ControllerBase
                     SocialId = account.NationalId!,
                     StudentNameArabic = account.FullNameAr,
                     StudentNameEnglish = account.FullNameEn,
+                    Email = account.Email,
+                    StudentPhoneNumber = account.AdmissionProfile != null ? account.AdmissionProfile.PhoneNumber : null,
+                    ParentPhoneNumber = account.AdmissionProfile != null ? account.AdmissionProfile.ParentPhoneNumber : null,
+                    DateOfBirth = account.AdmissionProfile != null ? account.AdmissionProfile.DateOfBirth : null,
+                    Age = account.AdmissionProfile != null ? CalculateAge(account.AdmissionProfile.DateOfBirth) : null,
+                    DateOfBirthYear = account.AdmissionProfile != null && account.AdmissionProfile.DateOfBirth.HasValue ? account.AdmissionProfile.DateOfBirth.Value.Year : null,
+                    DateOfBirthMonth = account.AdmissionProfile != null && account.AdmissionProfile.DateOfBirth.HasValue ? account.AdmissionProfile.DateOfBirth.Value.Month : null,
+                    DateOfBirthDay = account.AdmissionProfile != null && account.AdmissionProfile.DateOfBirth.HasValue ? account.AdmissionProfile.DateOfBirth.Value.Day : null,
+                    AgeYears = account.AdmissionProfile != null && account.AdmissionProfile.DateOfBirth.HasValue ? GetAgeParts(account.AdmissionProfile.DateOfBirth).Years : null,
+                    AgeMonths = account.AdmissionProfile != null && account.AdmissionProfile.DateOfBirth.HasValue ? GetAgeParts(account.AdmissionProfile.DateOfBirth).Months : null,
+                    AgeDays = account.AdmissionProfile != null && account.AdmissionProfile.DateOfBirth.HasValue ? GetAgeParts(account.AdmissionProfile.DateOfBirth).Days : null,
+                    PreviousSchoolType = account.AdmissionProfile != null ? account.AdmissionProfile.PreviousSchoolType : null,
                     CreatedAt = account.StudentExamResult != null && account.StudentExamResult.ExamStartedAtUtc.HasValue
                         ? account.StudentExamResult.ExamStartedAtUtc.Value
                         : account.CreatedAt.HasValue
@@ -472,6 +494,8 @@ public class AdminController : ControllerBase
 
                 if (key == "CreatedAt")
                     worksheet.Column(i + 1).Style.Numberformat.Format = "yyyy-mm-dd hh:mm";
+                else if (key == "DateOfBirth")
+                    worksheet.Column(i + 1).Style.Numberformat.Format = "yyyy-mm-dd";
             }
 
             int row = 2;
@@ -541,6 +565,18 @@ public class AdminController : ControllerBase
             "StudentNameArabic" => supplemental?.StudentNameArabic,
             "CreatedAt" => supplemental?.CreatedAt,
             "City" => supplemental?.City,
+            "StudentPhoneNumber" => supplemental?.StudentPhoneNumber,
+            "ParentPhoneNumber" => supplemental?.ParentPhoneNumber,
+            "Email" => supplemental?.Email,
+            "DateOfBirth" => NormalizeExcelDate(supplemental?.DateOfBirth),
+            "DateOfBirthYear" => supplemental?.DateOfBirthYear,
+            "DateOfBirthMonth" => supplemental?.DateOfBirthMonth,
+            "DateOfBirthDay" => supplemental?.DateOfBirthDay,
+            "AgeYears" => supplemental?.AgeYears,
+            "AgeMonths" => supplemental?.AgeMonths,
+            "AgeDays" => supplemental?.AgeDays,
+            "Age" => supplemental?.Age,
+            "PreviousSchoolType" => supplemental?.PreviousSchoolType,
             "Status" => GetStatusText(supplemental?.Status),
             "HasOnlineTrainingCourses" => supplemental?.HasOnlineTrainingCourses,
             "HasICDLLicense" => supplemental?.HasICDLLicense,
@@ -560,6 +596,14 @@ public class AdminController : ControllerBase
             _ when SpColumnMappings.TryGetValue(key, out var spColumn) => GetRawValue(row, spColumn.Trim('[', ']')),
             _ => null
         };
+    }
+
+    private static object? NormalizeExcelDate(DateOnly? value)
+    {
+        if (!value.HasValue)
+            return null;
+
+        return value.Value.ToDateTime(TimeOnly.MinValue);
     }
 
     private static object? GetRawValue(IReadOnlyDictionary<string, object?> row, string key)
@@ -582,12 +626,66 @@ public class AdminController : ControllerBase
             ? score
             : null;
 
+    private static AgeParts GetAgeParts(DateOnly? dateOfBirth)
+    {
+        if (!dateOfBirth.HasValue)
+            return new AgeParts(0, 0, 0);
+
+        var referenceDate = new DateOnly(2026, 10, 1);
+
+        var years = referenceDate.Year - dateOfBirth.Value.Year;
+        var months = referenceDate.Month - dateOfBirth.Value.Month;
+        var days = referenceDate.Day - dateOfBirth.Value.Day;
+
+        if (days < 0)
+        {
+            var previousMonth = new DateOnly(referenceDate.Year, referenceDate.Month, 1).AddDays(-1);
+            days += previousMonth.Day;
+            months -= 1;
+        }
+
+        if (months < 0)
+        {
+            years -= 1;
+            months += 12;
+        }
+
+        if (years < 0)
+        {
+            years = 0;
+            months = 0;
+            days = 0;
+        }
+
+        return new AgeParts(years, months, days);
+    }
+
+    private static string? CalculateAge(DateOnly? dateOfBirth)
+    {
+        var parts = GetAgeParts(dateOfBirth);
+        return $"{parts.Days} day{(parts.Days == 1 ? string.Empty : "s")} {parts.Months} month{(parts.Months == 1 ? string.Empty : "s")} {parts.Years} year{(parts.Years == 1 ? string.Empty : "s")}";
+    }
+
+    private readonly record struct AgeParts(int Years, int Months, int Days);
+
     private sealed class ExportSupplementalData
     {
         public long AccountId { get; init; }
         public string SocialId { get; init; } = string.Empty;
         public string? StudentNameArabic { get; init; }
         public string? StudentNameEnglish { get; init; }
+        public string? Email { get; init; }
+        public string? StudentPhoneNumber { get; init; }
+        public string? ParentPhoneNumber { get; init; }
+        public DateOnly? DateOfBirth { get; init; }
+        public string? Age { get; init; }
+        public int? DateOfBirthYear { get; init; }
+        public int? DateOfBirthMonth { get; init; }
+        public int? DateOfBirthDay { get; init; }
+        public int? AgeYears { get; init; }
+        public int? AgeMonths { get; init; }
+        public int? AgeDays { get; init; }
+        public string? PreviousSchoolType { get; init; }
         public DateTime? CreatedAt { get; init; }
         public string? City { get; init; }
         public long Status { get; init; }
