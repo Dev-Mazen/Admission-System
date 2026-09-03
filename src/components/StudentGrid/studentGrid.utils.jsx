@@ -3,11 +3,13 @@
  * functions for the StudentGrid. All pure functions — no React state.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, RefreshCw } from 'lucide-react';
 import { STATUS_MAP } from './studentGrid.types.js';
 import { adminAPI } from '../../utils/api.js';
 import { calculateStudentAge, getAgeParts } from '../../utils/studentProfile.js';
+import { getExamSectionMaximum } from '../../utils/examScoring.js';
 
 // ─── Interview Score Action Cell ───────────────────────────────────────────────
 
@@ -127,19 +129,160 @@ export function NameCell({ value }) {
   );
 }
 
-/** Exam score bar cell: total / max with mini progress bar */
+/** Exam score bar cell: total / max with mini progress bar and section hover breakdown */
 export function ExamScoreCell({ data, getExamTotal, getExamMaximum }) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPos, setTooltipPos] = useState(null);
+  const cellRef = useRef(null);
+
+  const updatePosition = () => {
+    if (!cellRef.current) return;
+    const rect = cellRef.current.getBoundingClientRect();
+    if (rect.bottom < 0 || rect.top > window.innerHeight) {
+      setShowTooltip(false);
+      return;
+    }
+    const spaceAbove = rect.top;
+    const placeBelow = spaceAbove < 210;
+    setTooltipPos({
+      top: placeBelow ? rect.bottom + 6 : rect.top - 6,
+      left: rect.left + rect.width / 2,
+      placeBelow,
+    });
+  };
+
+  useEffect(() => {
+    if (!showTooltip) return;
+    updatePosition();
+
+    const handleScroll = () => setShowTooltip(false);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [showTooltip]);
+
   if (!data) return null;
+
   const total = computeExamTotal(data, getExamTotal);
   const max   = computeExamMax(data, getExamMaximum);
-  const pct   = max > 0 ? (total / max) * 100 : 0;
+  const pct   = max > 0 ? Math.round((total / max) * 100) : 0;
   const color = pct >= 70 ? '#10b981' : pct >= 45 ? '#f59e0b' : '#ef4444';
+
+  const arabic = data.examArabicScore ?? data.ExamArabicScore;
+  const english = data.examEnglishScore ?? data.ExamEnglishScore;
+  const math = data.examMathScore ?? data.ExamMathScore;
+  const software = data.examSoftwareScore ?? data.ExamSoftwareScore;
+  const iq = data.examIqScore ?? data.ExamIqScore;
+
+  const hasIq = iq !== null && iq !== undefined;
+
+  const sections = [
+    { label: 'Arabic', score: arabic, max: getExamSectionMaximum(data, 'Arabic') || 15, color: '#3b82f6' },
+    { label: 'English', score: english, max: getExamSectionMaximum(data, 'English') || (hasIq ? 30 : 15), color: '#8b5cf6' },
+    { label: 'Math', score: math, max: getExamSectionMaximum(data, 'Math') || (hasIq ? 30 : 15), color: '#ec4899' },
+    { label: 'Software & Tech', score: software, max: getExamSectionMaximum(data, 'Software') || 15, color: '#10b981' },
+  ];
+
+  if (hasIq) {
+    sections.push({ label: 'IQ Test', score: iq, max: getExamSectionMaximum(data, 'IQ') || 10, color: '#f59e0b' });
+  }
+
+  const handleMouseEnter = () => {
+    updatePosition();
+    setShowTooltip(true);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4, height: '100%', padding: '6px 0' }}>
-      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sg-text)' }}>{total} / {max}</span>
-      <div style={{ height: 3, borderRadius: 99, background: 'var(--sg-track)', width: 70, overflow: 'hidden' }}>
+    <div
+      ref={cellRef}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={() => setShowTooltip(false)}
+      style={{
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        gap: 4,
+        height: '100%',
+        padding: '6px 0',
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--sg-text)' }}>
+          {total} / {max}
+        </span>
+        <span style={{ fontSize: 10, color: 'var(--sg-muted)', fontWeight: 400 }}>
+          ({pct}%)
+        </span>
+      </div>
+
+      <div style={{ height: 4, borderRadius: 99, background: 'var(--sg-track)', width: 75, overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 99, transition: 'width 0.4s ease' }} />
       </div>
+
+      {showTooltip && tooltipPos && createPortal(
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: tooltipPos.placeBelow ? `${tooltipPos.top}px` : undefined,
+            bottom: tooltipPos.placeBelow ? undefined : `${window.innerHeight - tooltipPos.top}px`,
+            left: `${tooltipPos.left}px`,
+            transform: 'translateX(-50%)',
+            zIndex: 999999,
+            width: 210,
+            background: 'var(--sg-bg, #ffffff)',
+            color: 'var(--sg-text, #0f172a)',
+            border: '1px solid var(--sg-border, #e2e8f0)',
+            borderRadius: 10,
+            padding: '10px 12px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.18), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+            pointerEvents: 'none',
+            fontSize: 12,
+            lineHeight: 1.4,
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+            paddingBottom: 6,
+            borderBottom: '1px solid var(--sg-border, #e2e8f0)',
+            fontWeight: 700,
+            fontSize: 12,
+          }}>
+            <span>Exam Marks Breakdown</span>
+            <span style={{ color, fontWeight: 700 }}>{total} / {max}</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {sections.map((sec) => {
+              const val = sec.score != null ? Number(sec.score) : null;
+              const secPct = val != null && sec.max > 0 ? Math.min(100, Math.round((val / sec.max) * 100)) : 0;
+              return (
+                <div key={sec.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                    <span style={{ color: 'var(--sg-text)', fontWeight: 500 }}>{sec.label}</span>
+                    <span style={{ fontWeight: 600, color: val != null ? 'var(--sg-text)' : 'var(--sg-muted)' }}>
+                      {val != null ? `${val} / ${sec.max}` : '—'}
+                    </span>
+                  </div>
+                  <div style={{ height: 3, borderRadius: 99, background: 'var(--sg-track, #e2e8f0)', width: '100%', overflow: 'hidden' }}>
+                    <div style={{ width: `${secPct}%`, height: '100%', background: sec.color, borderRadius: 99 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -531,130 +674,6 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
     },
 
     {
-      colId:        'studentPhoneNumber',
-      field:        'phoneNumber',
-      headerName:   'Student Phone Number',
-      width:        150,
-      sortable:     true,
-      filter:       'agTextColumnFilter',
-      valueGetter:  (p) => getFieldValue(p.data, 'phoneNumber', 'PhoneNumber', 'studentPhoneNumber', 'StudentPhoneNumber') ?? '',
-    },
-
-    {
-      colId:        'parentPhoneNumber',
-      field:        'parentPhoneNumber',
-      headerName:   'Parent Phone Number',
-      width:        150,
-      sortable:     true,
-      filter:       'agTextColumnFilter',
-      valueGetter:  (p) => getFieldValue(p.data, 'parentPhoneNumber', 'ParentPhoneNumber') ?? '',
-    },
-
-    {
-      colId:        'email',
-      field:        'email',
-      headerName:   'Email',
-      width:        200,
-      sortable:     true,
-      filter:       'agTextColumnFilter',
-      valueGetter:  (p) => getFieldValue(p.data, 'email', 'Email') ?? '',
-    },
-
-    {
-      colId:        'dateOfBirthYear',
-      field:        'dateOfBirthYear',
-      headerName:   'Date of Birth - Year',
-      width:        130,
-      sortable:     true,
-      filter:       'agNumberColumnFilter',
-      valueGetter:  (p) => {
-        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
-        if (!dob) return '';
-        const date = new Date(dob);
-        return Number.isNaN(date.getTime()) ? '' : date.getFullYear();
-      },
-    },
-
-    {
-      colId:        'dateOfBirthMonth',
-      field:        'dateOfBirthMonth',
-      headerName:   'Date of Birth - Month',
-      width:        150,
-      sortable:     true,
-      filter:       'agNumberColumnFilter',
-      valueGetter:  (p) => {
-        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
-        if (!dob) return '';
-        const date = new Date(dob);
-        return Number.isNaN(date.getTime()) ? '' : date.getMonth() + 1;
-      },
-    },
-
-    {
-      colId:        'dateOfBirthDay',
-      field:        'dateOfBirthDay',
-      headerName:   'Date of Birth - Day',
-      width:        130,
-      sortable:     true,
-      filter:       'agNumberColumnFilter',
-      valueGetter:  (p) => {
-        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
-        if (!dob) return '';
-        const date = new Date(dob);
-        return Number.isNaN(date.getTime()) ? '' : date.getDate();
-      },
-    },
-
-    {
-      colId:        'ageYears',
-      field:        'ageYears',
-      headerName:   'Age - Years',
-      width:        120,
-      sortable:     true,
-      filter:       'agNumberColumnFilter',
-      valueGetter:  (p) => {
-        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
-        return dob ? getAgeParts(dob).years : '';
-      },
-    },
-
-    {
-      colId:        'ageMonths',
-      field:        'ageMonths',
-      headerName:   'Age - Months',
-      width:        130,
-      sortable:     true,
-      filter:       'agNumberColumnFilter',
-      valueGetter:  (p) => {
-        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
-        return dob ? getAgeParts(dob).months : '';
-      },
-    },
-
-    {
-      colId:        'ageDays',
-      field:        'ageDays',
-      headerName:   'Age - Days',
-      width:        120,
-      sortable:     true,
-      filter:       'agNumberColumnFilter',
-      valueGetter:  (p) => {
-        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
-        return dob ? getAgeParts(dob).days : '';
-      },
-    },
-
-    {
-      colId:        'previousSchoolType',
-      field:        'previousSchoolType',
-      headerName:   'Previous School Type',
-      width:        180,
-      sortable:     true,
-      filter:       'agTextColumnFilter',
-      valueGetter:  (p) => getFieldValue(p.data, 'previousSchoolType', 'PreviousSchoolType') ?? '',
-    },
-
-    {
       colId:        'createdAt',
       field:        'createdAt',
       headerName:   'Created At',
@@ -855,6 +874,130 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
       filter:       false,
       resizable:    false,
       cellRenderer: (p) => <ContactsCell data={p.data} />,
+    },
+
+    {
+      colId:        'studentPhoneNumber',
+      field:        'phoneNumber',
+      headerName:   'Student Phone Number',
+      width:        150,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => getFieldValue(p.data, 'phoneNumber', 'PhoneNumber', 'studentPhoneNumber', 'StudentPhoneNumber') ?? '',
+    },
+
+    {
+      colId:        'parentPhoneNumber',
+      field:        'parentPhoneNumber',
+      headerName:   'Parent Phone Number',
+      width:        150,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => getFieldValue(p.data, 'parentPhoneNumber', 'ParentPhoneNumber') ?? '',
+    },
+
+    {
+      colId:        'email',
+      field:        'email',
+      headerName:   'Email',
+      width:        200,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => getFieldValue(p.data, 'email', 'Email') ?? '',
+    },
+
+    {
+      colId:        'dateOfBirthYear',
+      field:        'dateOfBirthYear',
+      headerName:   'Date of Birth - Year',
+      width:        130,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        if (!dob) return '';
+        const date = new Date(dob);
+        return Number.isNaN(date.getTime()) ? '' : date.getFullYear();
+      },
+    },
+
+    {
+      colId:        'dateOfBirthMonth',
+      field:        'dateOfBirthMonth',
+      headerName:   'Date of Birth - Month',
+      width:        150,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        if (!dob) return '';
+        const date = new Date(dob);
+        return Number.isNaN(date.getTime()) ? '' : date.getMonth() + 1;
+      },
+    },
+
+    {
+      colId:        'dateOfBirthDay',
+      field:        'dateOfBirthDay',
+      headerName:   'Date of Birth - Day',
+      width:        130,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        if (!dob) return '';
+        const date = new Date(dob);
+        return Number.isNaN(date.getTime()) ? '' : date.getDate();
+      },
+    },
+
+    {
+      colId:        'ageYears',
+      field:        'ageYears',
+      headerName:   'Age - Years',
+      width:        120,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        return dob ? getAgeParts(dob).years : '';
+      },
+    },
+
+    {
+      colId:        'ageMonths',
+      field:        'ageMonths',
+      headerName:   'Age - Months',
+      width:        130,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        return dob ? getAgeParts(dob).months : '';
+      },
+    },
+
+    {
+      colId:        'ageDays',
+      field:        'ageDays',
+      headerName:   'Age - Days',
+      width:        120,
+      sortable:     true,
+      filter:       'agNumberColumnFilter',
+      valueGetter:  (p) => {
+        const dob = getFieldValue(p.data, 'dateOfBirth', 'DateOfBirth', 'dob', 'Dob');
+        return dob ? getAgeParts(dob).days : '';
+      },
+    },
+
+    {
+      colId:        'previousSchoolType',
+      field:        'previousSchoolType',
+      headerName:   'Previous School Type',
+      width:        180,
+      sortable:     true,
+      filter:       'agTextColumnFilter',
+      valueGetter:  (p) => getFieldValue(p.data, 'previousSchoolType', 'PreviousSchoolType') ?? '',
     },
 
     // Interview Score action — only visible when showInterviewScoreAction is true

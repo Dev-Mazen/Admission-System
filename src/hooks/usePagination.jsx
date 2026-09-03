@@ -281,8 +281,14 @@ export const usePagination = () => {
       return 0;
     });
     // Pagination
-    const start = (currentPage - 1) * pageSize;
-    const end = start + pageSize;
+    const isAll = pageSize === "all" || pageSize === "All" || pageSize >= 100000;
+    if (isAll) {
+      return filtered;
+    }
+
+    const numericPageSize = Number(pageSize) || 10;
+    const start = (currentPage - 1) * numericPageSize;
+    const end = start + numericPageSize;
     return filtered.slice(start, end);
   }, [filteredAllStudents, searchTerm, statusFilter, cityFilter, sortBy, sortOrder, currentPage, pageSize]);
 
@@ -336,7 +342,13 @@ export const usePagination = () => {
       );
     }
     setTotalItems(filtered.length);
-    setTotalPages(Math.ceil(filtered.length / pageSize));
+    const isAll = pageSize === "all" || pageSize === "All" || pageSize >= 100000;
+    if (isAll) {
+      setTotalPages(1);
+    } else {
+      const numericPageSize = Number(pageSize) || 10;
+      setTotalPages(Math.ceil(filtered.length / numericPageSize));
+    }
   }, [filteredStudents, filteredAllStudents, searchTerm, statusFilter, cityFilter, pageSize]);
 
   return {

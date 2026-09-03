@@ -811,7 +811,7 @@ const SuperAdminDashboardPage = () => {
                 onPageSizeChange={handlePageSizeChange}
                 pageSize={pageSize}
                 totalItems={totalItems}
-                pageSizeOptions={[10, 20, 50]}
+                pageSizeOptions={[10, 20, 50, "all"]}
                 showPageSizeSelector={true}
               />
             )}

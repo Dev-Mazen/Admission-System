@@ -8,7 +8,7 @@ const Pagination = ({
   onPageSizeChange,
   pageSize,
   totalItems,
-  pageSizeOptions = [10, 20, 50],
+  pageSizeOptions = [10, 20, 50, "all"],
   showPageSizeSelector = true,
 }) => {
   const getPageNumbers = () => {
@@ -46,15 +46,18 @@ const Pagination = ({
     return null;
   }
 
+  const isAll = pageSize === "all" || pageSize === "All" || pageSize >= 100000;
+  const numericPageSize = isAll ? totalItems || 1 : (typeof pageSize === 'number' ? pageSize : parseInt(pageSize, 10) || 10);
+
   const pageNumbers = getPageNumbers();
-  const startItem = (currentPage - 1) * pageSize + 1;
-  const endItem = Math.min(currentPage * pageSize, totalItems);
+  const startItem = totalItems === 0 ? 0 : isAll ? 1 : (currentPage - 1) * numericPageSize + 1;
+  const endItem = isAll ? totalItems : Math.min(currentPage * numericPageSize, totalItems);
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white px-4 py-3 border-t border-gray-200">
       {/* Items info */}
       <div className="text-sm text-gray-700">
-        {totalPages === 1
+        {totalPages === 1 || isAll
           ? `Showing all ${totalItems} results`
           : `Showing ${startItem} to ${endItem} of ${totalItems} results`}
       </div>
@@ -67,12 +70,15 @@ const Pagination = ({
             <label className="text-sm text-gray-700">Show:</label>
             <select
               value={pageSize}
-              onChange={(e) => onPageSizeChange(parseInt(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.value;
+                onPageSizeChange(val === "all" || val === "All" ? "all" : parseInt(val, 10));
+              }}
               className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
             >
-              {pageSizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size}
+              {pageSizeOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option === "all" || option === "All" ? "All" : option}
                 </option>
               ))}
             </select>
