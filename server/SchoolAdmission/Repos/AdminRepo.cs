@@ -107,6 +107,8 @@ public class AdminRepo : IAdminRepo
                 PhoneNumber = admissionProfile?.PhoneNumber ?? "",
                 ParentPhoneNumber = admissionProfile?.ParentPhoneNumber ?? "",
                 PreviousSchoolType = admissionProfile?.PreviousSchoolType ?? "",
+                DateOfBirth = admissionProfile?.DateOfBirth,
+                Age = CalculateAge(admissionProfile?.DateOfBirth),
                 MathScore = admissionProfile?.MathScore ?? 0,
                 EnglishScore = admissionProfile?.EnglishScore ?? 0,
                 FinalYearScore = admissionProfile?.ThirdPrepScore ?? 0,
@@ -201,6 +203,8 @@ public class AdminRepo : IAdminRepo
                 PhoneNumber = admissionProfile?.PhoneNumber ?? "",
                 ParentPhoneNumber = admissionProfile?.ParentPhoneNumber ?? "",
                 PreviousSchoolType = admissionProfile?.PreviousSchoolType ?? "",
+                DateOfBirth = admissionProfile?.DateOfBirth,
+                Age = CalculateAge(admissionProfile?.DateOfBirth),
                 s.NationalId,
                 s.Email,
                 MathScore = admissionProfile?.MathScore ?? 0,
@@ -329,6 +333,40 @@ public class AdminRepo : IAdminRepo
     {
         return await _db.Accounts
             .FirstOrDefaultAsync(a => a.Email == email);
+    }
+
+    private static string? CalculateAge(DateOnly? dateOfBirth)
+    {
+        if (!dateOfBirth.HasValue)
+            return null;
+
+        var referenceDate = new DateOnly(2026, 10, 1);
+
+        var years = referenceDate.Year - dateOfBirth.Value.Year;
+        var months = referenceDate.Month - dateOfBirth.Value.Month;
+        var days = referenceDate.Day - dateOfBirth.Value.Day;
+
+        if (days < 0)
+        {
+            var previousMonth = new DateOnly(referenceDate.Year, referenceDate.Month, 1).AddDays(-1);
+            days += previousMonth.Day;
+            months -= 1;
+        }
+
+        if (months < 0)
+        {
+            years -= 1;
+            months += 12;
+        }
+
+        if (years < 0)
+        {
+            years = 0;
+            months = 0;
+            days = 0;
+        }
+
+        return $"{days} day{(days == 1 ? string.Empty : "s")} {months} month{(months == 1 ? string.Empty : "s")} {years} year{(years == 1 ? string.Empty : "s")}";
     }
 
     public async Task<PaginationResponseDTO<dynamic>> GetStudentsForAdminPaginatedAsync(string adminEmail, PaginationRequestDTO request)
@@ -483,6 +521,10 @@ public class AdminRepo : IAdminRepo
                 s.FullName,
                 s.NationalId,
                 s.Email,
+                PhoneNumber = s.AdmissionProfile?.PhoneNumber ?? "",
+                ParentPhoneNumber = s.AdmissionProfile?.ParentPhoneNumber ?? "",
+                DateOfBirth = s.AdmissionProfile?.DateOfBirth,
+                Age = CalculateAge(s.AdmissionProfile?.DateOfBirth),
                 MathScore = s.AdmissionProfile?.MathScore ?? 0,
                 EnglishScore = s.AdmissionProfile?.EnglishScore ?? 0,
                 FinalYearScore = s.AdmissionProfile?.ThirdPrepScore ?? 0,
@@ -609,6 +651,7 @@ public class AdminRepo : IAdminRepo
                 PhoneNumber = s.AdmissionProfile.PhoneNumber,
                 ParentPhoneNumber = s.AdmissionProfile.ParentPhoneNumber,
                 PreviousSchoolType = s.AdmissionProfile.PreviousSchoolType,
+                DateOfBirth = s.AdmissionProfile.DateOfBirth,
                 s.NationalId,
                 s.Email,
                 MathScore = s.AdmissionProfile.MathScore,
@@ -690,6 +733,8 @@ public class AdminRepo : IAdminRepo
                 s.PhoneNumber,
                 s.ParentPhoneNumber,
                 s.PreviousSchoolType,
+                DateOfBirth = s.DateOfBirth,
+                Age = CalculateAge(s.DateOfBirth),
                 s.NationalId,
                 s.Email,
                 s.MathScore,
