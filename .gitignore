@@ -25,3 +25,8 @@ dist-ssr
 .env.production
 .env.development
 
+# C# Build Artifacts
+server/SchoolAdmission/bin/
+server/SchoolAdmission/obj/
+server/SchoolAdmission/.vs/
+*.user
