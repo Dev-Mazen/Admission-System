@@ -90,22 +90,27 @@ export const useStudents = () => {
           student.nationalId?.includes(searchTerm) ||
           student.email?.toLowerCase().includes(searchTerm.toLowerCase())) &&
         (statusFilter === "all" ||
-          (statusFilter === "Pending" &&
-            (student.Status === "1" ||
+          ((statusFilter === "Pending" || statusFilter === "Waitlisted") &&
+            (student.Status === "4" ||
+              student.status === "4" ||
+              student.status === 4 ||
+              student.Status === "1" ||
               student.status === "1" ||
               student.status === 1)) ||
-          (statusFilter === "Accepted" &&
-            (student.Status === "2" ||
+          ((statusFilter === "Accepted" || statusFilter === "Approved") &&
+            (student.Status === "7" ||
+              student.status === "7" ||
+              student.status === 7 ||
+              student.Status === "2" ||
               student.status === "2" ||
               student.status === 2)) ||
           (statusFilter === "Rejected" &&
-            (student.Status === "3" ||
+            (student.Status === "6" ||
+              student.status === "6" ||
+              student.status === 6 ||
+              student.Status === "3" ||
               student.status === "3" ||
-              student.status === 3)) ||
-          (statusFilter === "Waitlisted" &&
-            (student.Status === "4" ||
-              student.status === "4" ||
-              student.status === 4)))
+              student.status === 3)))
     )
     .sort((a, b) => {
       let aValue, bValue;
@@ -195,15 +200,16 @@ export const useStudents = () => {
       const getStatusNumber = (statusText) => {
         switch (statusText) {
           case "Pending":
-            return 1;
-          case "Accepted":
-            return 2;
-          case "Rejected":
-            return 3;
           case "Waitlisted":
+          case "Waitlist":
             return 4;
+          case "Accepted":
+          case "Approved":
+            return 7;
+          case "Rejected":
+            return 6;
           default:
-            return 1;
+            return 4;
         }
       };
 

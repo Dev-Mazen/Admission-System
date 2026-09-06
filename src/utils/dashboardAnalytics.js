@@ -1,12 +1,14 @@
 export const buildDashboardStats = (students, currentAdminRole) => {
   const isBoard = currentAdminRole === "Board";
   const totalStudents = students.length;
-  const accepted = students.filter(
-    (s) => s.Status === "2" || s.status === "2" || s.status === 2
-  ).length;
-  const pending = students.filter(
-    (s) => s.Status === "1" || s.status === "1" || s.status === 1
-  ).length;
+  const accepted = students.filter((s) => {
+    const st = String(s.Status ?? s.status ?? "").trim().toLowerCase();
+    return st === "7" || st === "2" || st === "accepted" || st === "approved";
+  }).length;
+  const pending = students.filter((s) => {
+    const st = String(s.Status ?? s.status ?? "").trim().toLowerCase();
+    return st === "4" || st === "1" || st === "pending" || st === "waitlisted" || st === "waitlist";
+  }).length;
 
   const interviewedStudents = students.filter((s) => {
     if (isBoard) {
@@ -141,21 +143,16 @@ export const buildDashboardAnalytics = (students, options = {}) => {
   const dailyMap = new Map();
 
   students.forEach((student) => {
-    const statusValue = String(student.Status ?? student.status ?? "").trim();
-    switch (statusValue) {
-      case "2":
-        acceptanceCounts.accepted += 1;
-        break;
-      case "3":
-        acceptanceCounts.rejected += 1;
-        break;
-      case "4":
-        acceptanceCounts.waitlisted += 1;
-        break;
-      case "1":
-      default:
-        acceptanceCounts.pending += 1;
-        break;
+    const statusValue = String(student.Status ?? student.status ?? "").trim().toLowerCase();
+    if (statusValue === "7" || statusValue === "2" || statusValue === "accepted" || statusValue === "approved") {
+      acceptanceCounts.accepted += 1;
+    } else if (statusValue === "6" || statusValue === "3" || statusValue === "rejected") {
+      acceptanceCounts.rejected += 1;
+    } else if (statusValue === "4" || statusValue === "1" || statusValue === "pending" || statusValue === "waitlisted" || statusValue === "waitlist") {
+      acceptanceCounts.pending += 1;
+      acceptanceCounts.waitlisted += 1;
+    } else {
+      acceptanceCounts.pending += 1;
     }
 
     const schoolType =

@@ -183,30 +183,20 @@ export const usePagination = () => {
     if (statusFilter !== "all") {
       filtered = filtered.filter((s) => {
         // Handle different status formats
-        const studentStatus = s.Status || s.status;
+        const studentStatus = s.Status ?? s.status;
+        const str = String(studentStatus ?? "").trim().toLowerCase();
         
-        // Convert status numbers to text for comparison
-        const getStatusText = (status) => {
-          switch (status) {
-            case 1:
-            case "1":
-              return "Pending";
-            case 2:
-            case "2":
-              return "Accepted";
-            case 3:
-            case "3":
-              return "Rejected";
-            case 4:
-            case "4":
-              return "Waitlisted";
-            default:
-              return "Pending";
-          }
-        };
-        
-        const statusText = getStatusText(studentStatus);
-        return statusText === statusFilter;
+        const filterLower = statusFilter.toLowerCase();
+        if (filterLower === "accepted" || filterLower === "approved") {
+          return str === "7" || str === "2" || str === "accepted" || str === "approved";
+        }
+        if (filterLower === "rejected") {
+          return str === "6" || str === "3" || str === "rejected";
+        }
+        if (filterLower === "pending" || filterLower === "waitlisted" || filterLower === "waitlist") {
+          return str === "4" || str === "1" || str === "pending" || str === "waitlisted" || str === "waitlist";
+        }
+        return str === filterLower;
       });
     }
     if (cityFilter !== "all") {
