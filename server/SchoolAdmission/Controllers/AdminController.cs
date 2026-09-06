@@ -264,6 +264,41 @@ public class AdminController : ControllerBase
         }
     }
 
+    [HttpPut("students/status/bulk")]
+    public async Task<IActionResult> BulkUpdateStudentStatus([FromBody] BulkUpdateStudentStatusDTO dto)
+    {
+        try
+        {
+            var userEmail = await _adminRepo.GetCurrentAdminEmailAsync(User);
+            if (string.IsNullOrEmpty(userEmail))
+                return Unauthorized("Admin not found or not authorized. Please log in again.");
+
+            var adminAccount = await _adminRepo.GetAccountByEmailAsync(userEmail);
+            if (adminAccount == null)
+                return Unauthorized("Admin not found or not authorized. Please log in again.");
+
+            var isSuperAdmin = await _authRepo.IsSuperAdminAsync(userEmail);
+
+            if (!isSuperAdmin)
+                return Forbid("Only SuperAdmin can update student status in bulk.");
+
+            if (dto.StudentIds == null || dto.StudentIds.Count == 0)
+                return BadRequest("No students selected for bulk status update.");
+
+            var count = await _adminRepo.BulkUpdateStudentStatusAsync(dto.StudentIds, dto.Status);
+
+            return Ok(ApiResponse.SuccessResult($"Successfully updated status of {count} student(s) to {dto.Status}."));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, ApiResponse.ErrorResult("An error occurred while updating student statuses in bulk", ex.Message));
+        }
+    }
+
     [HttpGet("export-students-columns")]
     public async Task<IActionResult> GetExportStudentsColumns()
     {
@@ -705,13 +740,14 @@ public class AdminController : ControllerBase
     {
         if (status == null) return "Pending";
 
+        // Status IDs match the shared Status table (BusinessEntity = 'AdmissionProfile'):
+        //   4 = Pending, 6 = Rejected, 7 = Approved
         string statusStr = status.ToString() ?? "Pending";
         return statusStr switch
         {
-            "1" => "Pending",
-            "2" => "Accepted",
-            "3" => "Rejected",
-            "4" => "Waitlisted",
+            "4" => "Pending",
+            "6" => "Rejected",
+            "7" => "Approved",
             _ => "Pending"
         };
     }

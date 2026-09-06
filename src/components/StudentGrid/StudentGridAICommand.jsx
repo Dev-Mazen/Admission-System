@@ -8,7 +8,7 @@ import { STATUS_MAP } from './studentGrid.types.js';
  */
 const EXAMPLE_CHIPS = [
   { label: 'Show pending',    command: 'show pending' },
-  { label: 'Show accepted',   command: 'show accepted' },
+  { label: 'Show approved',   command: 'show approved' },
   { label: 'Show rejected',   command: 'show rejected' },
   { label: 'Sort by name ↑',  command: 'sort by name asc' },
   { label: 'Sort by score ↓', command: 'sort by score desc' },
@@ -29,10 +29,9 @@ function parseCommand(input) {
   const s = input.trim().toLowerCase();
 
   // Status filters
-  if (s.includes('pending'))    return { type: 'SET_STATUS_FILTER', status: 1 };
-  if (s.includes('accepted'))   return { type: 'SET_STATUS_FILTER', status: 2 };
-  if (s.includes('rejected'))   return { type: 'SET_STATUS_FILTER', status: 3 };
-  if (s.includes('waitlist'))   return { type: 'SET_STATUS_FILTER', status: 4 };
+  if (s.includes('pending') || s.includes('waitlist')) return { type: 'SET_STATUS_FILTER', status: 4 };
+  if (s.includes('accepted') || s.includes('approved')) return { type: 'SET_STATUS_FILTER', status: 7 };
+  if (s.includes('rejected'))                         return { type: 'SET_STATUS_FILTER', status: 6 };
 
   // Clear
   if (s.includes('clear') || s.includes('show all') || s.includes('reset'))

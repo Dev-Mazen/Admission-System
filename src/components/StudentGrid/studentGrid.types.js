@@ -19,7 +19,7 @@
  * @property {boolean} hasOnlineTrainingCourses
  * @property {boolean} hasICDLLicense
  * @property {boolean} hasLaptop
- * @property {number}  status  - 1=Pending 2=Accepted 3=Rejected 4=Waitlisted
+ * @property {number}  status  - 4=Pending 6=Rejected 7=Accepted
  * @property {string}  [phoneNumber]
  * @property {string}  [parentPhoneNumber]
  * @property {number}  [interviewPercentage]
@@ -65,12 +65,15 @@ export const DENSITY_ROW_HEIGHT = {
 };
 
 /**
- * Status config map — drives badge colors and labels.
+ * Status config map — driven by the shared Status table in the DB
+ * (BusinessEntity = 'AdmissionProfile'):
+ *   ID 4  → Pending
+ *   ID 6  → Rejected
+ *   ID 7  → Accepted
  * @type {Record<number, { label: string; bg: string; color: string; border: string; dot: string }>}
  */
 export const STATUS_MAP = {
-  1: { label: 'Pending',    bg: 'rgba(245,158,11,0.10)', color: '#b45309', border: 'rgba(245,158,11,0.35)', dot: '#f59e0b' },
-  2: { label: 'Accepted',   bg: 'rgba(16,185,129,0.10)', color: '#047857', border: 'rgba(16,185,129,0.35)', dot: '#10b981' },
-  3: { label: 'Rejected',   bg: 'rgba(239,68,68,0.10)',  color: '#b91c1c', border: 'rgba(239,68,68,0.35)',  dot: '#ef4444' },
-  4: { label: 'Waitlisted', bg: 'rgba(99,102,241,0.10)', color: '#4338ca', border: 'rgba(99,102,241,0.35)', dot: '#6366f1' },
+  4: { label: 'Pending',  bg: 'rgba(245,158,11,0.10)', color: '#b45309', border: 'rgba(245,158,11,0.35)', dot: '#f59e0b' },
+  6: { label: 'Rejected', bg: 'rgba(239,68,68,0.10)',  color: '#b91c1c', border: 'rgba(239,68,68,0.35)',  dot: '#ef4444' },
+  7: { label: 'Accepted', bg: 'rgba(16,185,129,0.10)', color: '#047857', border: 'rgba(16,185,129,0.35)', dot: '#10b981' },
 };

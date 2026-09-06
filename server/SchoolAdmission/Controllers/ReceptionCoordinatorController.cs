@@ -79,7 +79,7 @@ public class ReceptionCoordinatorController : ControllerBase
                 ThirdPrepScore = dto.FinalYearScore,
                 IsAcceptanceLetterReceived = dto.IsAcceptanceLetterReceived,
                 MinistryExamPercentage = dto.MinistryExamPercentage,
-                StatusId = 1 // Default status (Pending)
+                StatusId = (long)AdmissionStatus.Pending // ID 4 = Pending in Status table (BusinessEntity='AdmissionProfile')
             };
             await _admissionProfileRepo.AddAsync(admissionProfile);
             await _admissionProfileRepo.SaveChangesAsync();

@@ -82,7 +82,10 @@ function useDebounce(value, ms) {
  *   getExamTotal?: (s: any) => number;
  *   getExamMaximum?: (s: any) => number;
  *   handleViewStudentDetails?: (s: any) => void;
+ *   handleViewStudentDetails?: (s: any) => void;
  *   canEditStatus?: boolean;
+ *   onBulkStatusChange?: (selectedRows: any[], newStatus: string) => void;
+ *   onSelectionChange?: (selectedRows: any[]) => void;
  * }} props
  */
 export default function StudentGrid({
@@ -95,6 +98,8 @@ export default function StudentGrid({
   handleViewStudentDetails,
   onGiveScore,
   canEditStatus = false,
+  onBulkStatusChange,
+  onSelectionChange,
 }) {
   // ── Theme ─────────────────────────────────────────────────────────────────
   const [theme, setTheme] = useState(LIGHT_THEME);
@@ -119,6 +124,7 @@ export default function StudentGrid({
   const [gridApi, setGridApi] = useState(/** @type {import('ag-grid-community').GridApi|null} */(null));
   const [search,    setSearch]    = useState('');
   const [selectedCount, setSelectedCount] = useState(0);
+  const [selectedRows, setSelectedRows] = useState([]);
   const [activeFilterCount, setActiveFilterCount] = useState(0);
 
   /** @type {[{ colId: string; label: string; hidden: boolean }[], Function]} */
@@ -214,8 +220,13 @@ export default function StudentGrid({
 
   // ── Selection change ─────────────────────────────────────────────────────
   const onSelectionChanged = useCallback((e) => {
-    setSelectedCount(e.api.getSelectedRows().length);
-  }, []);
+    const rows = e.api.getSelectedRows() ?? [];
+    setSelectedCount(rows.length);
+    setSelectedRows(rows);
+    if (onSelectionChange) {
+      onSelectionChange(rows);
+    }
+  }, [onSelectionChange]);
 
   // ── Filter change → update badge + persist ────────────────────────────────
   const onFilterChanged = useCallback((e) => {
@@ -315,6 +326,9 @@ export default function StudentGrid({
         activeFilterCount={activeFilterCount}
         onClearFilters={handleClearFilters}
         selectedCount={selectedCount}
+        selectedRows={selectedRows}
+        canEditStatus={canEditStatus}
+        onBulkStatusChange={onBulkStatusChange}
         density={density}
         onDensityChange={handleDensityChange}
         managedCols={managedCols}

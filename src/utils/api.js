@@ -127,6 +127,9 @@ export const adminAPI = {
   updateStudentStatus: (studentId, status) =>
     api.put(`/Admin/student/${studentId}/status`, { Status: status }),
 
+  bulkUpdateStudentStatus: (studentIds, status) =>
+    api.put("/Admin/students/status/bulk", { studentIds, status }),
+
   exportStudentsToExcel: (columns, exportOptions = {}) =>
     api.post(
       "/Admin/export-students-excel",

@@ -85,6 +85,8 @@ const SuperAdminDashboardPage = () => {
   const [showStatusConfirmation, setShowStatusConfirmation] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState("Pending");
+  const [showBulkStatusConfirmation, setShowBulkStatusConfirmation] = useState(false);
+  const [pendingBulkStatusChange, setPendingBulkStatusChange] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -314,6 +316,54 @@ const SuperAdminDashboardPage = () => {
 
     } catch (err) {
       setError(err.response?.data || "Failed to update student status");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Bulk update student status function
+  const handleBulkStatusChange = (selectedRows, status) => {
+    const ids = selectedRows
+      .map((row) => row.id ?? row.Id ?? row.nationalId ?? row.SocialID)
+      .filter(Boolean);
+
+    if (ids.length === 0) {
+      setError("No valid students selected.");
+      return;
+    }
+
+    setPendingBulkStatusChange({
+      studentIds: ids,
+      status: status,
+      count: ids.length,
+    });
+    setShowBulkStatusConfirmation(true);
+  };
+
+  const executeBulkStatusChange = async () => {
+    if (!pendingBulkStatusChange) return;
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      const res = await adminAPI.bulkUpdateStudentStatus(
+        pendingBulkStatusChange.studentIds,
+        pendingBulkStatusChange.status
+      );
+
+      refreshData();
+      setSuccessMessage(
+        res.data?.message ||
+          `Successfully updated status of ${pendingBulkStatusChange.count} student(s) to ${pendingBulkStatusChange.status}`
+      );
+      setShowBulkStatusConfirmation(false);
+      setPendingBulkStatusChange(null);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || err.response?.data || "Failed to update student statuses in bulk"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -798,6 +848,7 @@ const SuperAdminDashboardPage = () => {
                   getExamPercentage={getExamPercentage}
                   hasIqExamScore={hasIqExamScore}
                   canEditStatus={true}
+                  onBulkStatusChange={handleBulkStatusChange}
                 />
               </CardContent>
             </Card>
@@ -1344,6 +1395,57 @@ const SuperAdminDashboardPage = () => {
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Updating..." : "Confirm Change"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Status Change Confirmation Modal */}
+      {showBulkStatusConfirmation && (
+        <div className="fixed inset-0 backdrop-blur-sm bg-black/30 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full shadow-2xl">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                <svg
+                  className="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900">
+                Bulk Status Change
+              </h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to change the status of <strong>{pendingBulkStatusChange?.count}</strong> selected student(s) to <strong>{pendingBulkStatusChange?.status}</strong>?
+            </p>
+            <div className="flex space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowBulkStatusConfirmation(false);
+                  setPendingBulkStatusChange(null);
+                }}
+                className="flex-1"
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={executeBulkStatusChange}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Updating..." : `Confirm (${pendingBulkStatusChange?.count})`}
               </Button>
             </div>
           </div>

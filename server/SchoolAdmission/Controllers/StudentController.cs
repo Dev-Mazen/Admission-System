@@ -3,6 +3,7 @@ using SchoolAdmission.DTOs;
 using SchoolAdmission.Repos.IRepos;
 using SchoolAdmission.Services;
 using SchoolAdmission.Data;
+using SchoolAdmission.Models;
 using Microsoft.EntityFrameworkCore;
 
 [ApiController]
@@ -490,11 +491,12 @@ public class StudentController : ControllerBase
 
     private static string MapStatus(long statusId)
     {
+        // Status IDs match the shared Status table (BusinessEntity = 'AdmissionProfile'):
+        //   4 = Pending, 6 = Rejected, 7 = Approved
         return statusId switch
         {
-            2 => "Accepted",
-            3 => "Rejected",
-            4 => "Waitlisted",
+            (long)AdmissionStatus.Approved => "Approved",
+            (long)AdmissionStatus.Rejected => "Rejected",
             _ => "Pending"
         };
     }
@@ -507,7 +509,7 @@ public class StudentController : ControllerBase
         if (!hasCompletedExam)
             return "Proceed to exam verification and complete the admission exam.";
 
-        if (statusText == "Accepted" || statusText == "Rejected" || statusText == "Waitlisted")
+        if (statusText == "Approved" || statusText == "Rejected")
             return $"Your final decision is published: {statusText}.";
 
         if (interviewCount < 3)

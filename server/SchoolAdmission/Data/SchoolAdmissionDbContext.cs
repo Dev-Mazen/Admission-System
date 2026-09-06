@@ -59,7 +59,7 @@ public partial class SchoolAdmissionDbContext : DbContext
             entity.Property(e => e.FullNameEn).HasColumnName("FullNameEN");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.Property(e => e.NationalId).HasMaxLength(50);
-            entity.Property(e => e.StatusId).HasDefaultValue(1L);
+            entity.Property(e => e.StatusId).HasDefaultValue(4L); // 4 = Pending in Status table (BusinessEntity='AdmissionProfile')
 
             entity.HasOne(d => d.Role).WithMany(p => p.Accounts)
                 .HasForeignKey(d => d.RoleId)
@@ -92,7 +92,7 @@ public partial class SchoolAdmissionDbContext : DbContext
             entity.Property(e => e.MinistryExamPercentage).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.ParentPhoneNumber).HasMaxLength(20);
             entity.Property(e => e.SoftwareInterviewScore).HasColumnType("decimal(5, 2)");
-            entity.Property(e => e.StatusId).HasDefaultValue(1L);
+            entity.Property(e => e.StatusId).HasDefaultValue(4L); // 4 = Pending in Status table (BusinessEntity='AdmissionProfile')
             entity.Property(e => e.ThirdPrepScore).HasColumnType("decimal(5, 2)");
 
             entity.HasOne(d => d.Account).WithOne(p => p.AdmissionProfile)

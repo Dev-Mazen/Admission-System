@@ -295,6 +295,15 @@ public class AdminRepo : IAdminRepo
 
     public async Task<bool> UpdateStudentStatusAsync(long studentId, string status)
     {
+        if (string.Equals(status, "Waitlisted", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Waitlist", StringComparison.OrdinalIgnoreCase))
+        {
+            status = "Pending";
+        }
+        else if (string.Equals(status, "Accepted", StringComparison.OrdinalIgnoreCase))
+        {
+            status = "Approved";
+        }
+
         if (!Enum.TryParse<AdmissionStatus>(status, true, out var admissionStatus))
             throw new ArgumentException($"Invalid status '{status}'. Allowed values are: {string.Join(", ", Enum.GetNames<AdmissionStatus>())}");
 
@@ -308,10 +317,61 @@ public class AdminRepo : IAdminRepo
         if (student.AdmissionProfile == null)
             throw new InvalidOperationException($"Student admission profile not found for student ID {studentId}.");
 
-        student.AdmissionProfile.StatusId = (long)admissionStatus;
+        var statusId = (long)admissionStatus;
+
+        // Update both Account and AdmissionProfile to keep them in sync
+        student.StatusId = statusId;
+        student.AdmissionProfile.StatusId = statusId;
+
         await _db.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<int> BulkUpdateStudentStatusAsync(List<long> studentIds, string status)
+    {
+        if (studentIds == null || studentIds.Count == 0)
+            return 0;
+
+        if (string.Equals(status, "Waitlisted", StringComparison.OrdinalIgnoreCase) || string.Equals(status, "Waitlist", StringComparison.OrdinalIgnoreCase))
+        {
+            status = "Pending";
+        }
+        else if (string.Equals(status, "Accepted", StringComparison.OrdinalIgnoreCase))
+        {
+            status = "Approved";
+        }
+
+        if (!Enum.TryParse<AdmissionStatus>(status, true, out var admissionStatus))
+            throw new ArgumentException($"Invalid status '{status}'. Allowed values are: {string.Join(", ", Enum.GetNames<AdmissionStatus>())}");
+
+        var statusId = (long)admissionStatus;
+
+        // Update AdmissionProfile.StatusId for all selected students
+        var profiles = await _db.AdmissionProfiles
+            .Where(ap => studentIds.Contains(ap.AccountId))
+            .ToListAsync();
+
+        if (profiles.Count == 0)
+            return 0;
+
+        foreach (var profile in profiles)
+        {
+            profile.StatusId = statusId;
+        }
+
+        // Also update Account.StatusId to keep both tables in sync
+        var accounts = await _db.Accounts
+            .Where(a => studentIds.Contains(a.Id))
+            .ToListAsync();
+
+        foreach (var account in accounts)
+        {
+            account.StatusId = statusId;
+        }
+
+        await _db.SaveChangesAsync();
+        return profiles.Count;
     }
 
     public async Task<int> GetExamTotalAsync(StudentExamResult? examResults)
@@ -412,13 +472,18 @@ public class AdminRepo : IAdminRepo
         }
 
         // Apply status filter if a status is provided
+        // Status IDs are sourced from the shared Status table (BusinessEntity = 'AdmissionProfile'):
+        //   4 = Pending, 6 = Rejected, 7 = Approved
         if (!string.IsNullOrEmpty(request.StatusFilter) && request.StatusFilter != "all")
         {
-            var statusMapping = new Dictionary<string, long>
+            var statusMapping = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase)
             {
-                { "Pending", 1 },
-                { "Accepted", 2 },
-                { "Rejected", 3 }
+                { "Pending",    (long)AdmissionStatus.Pending  },
+                { "Waitlisted", (long)AdmissionStatus.Pending  },
+                { "Waitlist",   (long)AdmissionStatus.Pending  },
+                { "Rejected",   (long)AdmissionStatus.Rejected },
+                { "Approved",   (long)AdmissionStatus.Approved },
+                { "Accepted",   (long)AdmissionStatus.Approved }
             };
 
             if (statusMapping.TryGetValue(request.StatusFilter, out var statusId))
@@ -620,14 +685,18 @@ public class AdminRepo : IAdminRepo
         }
 
         // Apply status filter if a status is provided
+        // Status IDs are sourced from the shared Status table (BusinessEntity = 'AdmissionProfile'):
+        //   4 = Pending, 6 = Rejected, 7 = Approved
         if (!string.IsNullOrEmpty(request.StatusFilter) && request.StatusFilter != "all")
         {
-            var statusMapping = new Dictionary<string, long>
+            var statusMapping = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase)
             {
-                { "Pending", 1 },
-                { "Accepted", 2 },
-                { "Rejected", 3 },
-                { "Waitlisted", 4 }
+                { "Pending",    (long)AdmissionStatus.Pending  },
+                { "Waitlisted", (long)AdmissionStatus.Pending  },
+                { "Waitlist",   (long)AdmissionStatus.Pending  },
+                { "Rejected",   (long)AdmissionStatus.Rejected },
+                { "Approved",   (long)AdmissionStatus.Approved },
+                { "Accepted",   (long)AdmissionStatus.Approved }
             };
 
             if (statusMapping.TryGetValue(request.StatusFilter, out var statusId))

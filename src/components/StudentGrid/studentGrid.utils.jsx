@@ -390,21 +390,25 @@ export function BoolCell({ value }) {
     : <span style={{ color: 'var(--sg-muted)', fontWeight: 400, fontSize: 12 }}>—</span>;
 }
 
+// Status IDs from the shared Status table (BusinessEntity = 'AdmissionProfile'):
+//   4 = Pending, 6 = Rejected, 7 = Approved
 export const STATUS_LOOKUP = {
-  1: { id: 1, name: 'Pending', label: 'Pending', color: '#b45309', bg: '#fef3c7', border: '#fcd34d' },
-  2: { id: 2, name: 'Accepted', label: 'Accepted', color: '#047857', bg: '#d1fae5', border: '#6ee7b7' },
-  3: { id: 3, name: 'Rejected', label: 'Rejected', color: '#b91c1c', bg: '#fee2e2', border: '#fca5a5' },
-  4: { id: 4, name: 'Waitlisted', label: 'Waitlisted', color: '#4338ca', bg: '#e0e7ff', border: '#a5b4fc' },
+  4: { id: 4, name: 'Pending',  label: 'Pending',  color: '#b45309', bg: '#fef3c7', border: '#fcd34d' },
+  6: { id: 6, name: 'Rejected', label: 'Rejected', color: '#b91c1c', bg: '#fee2e2', border: '#fca5a5' },
+  7: { id: 7, name: 'Accepted', label: 'Accepted', color: '#047857', bg: '#d1fae5', border: '#6ee7b7' },
 };
 
 export function normalizeStatus(raw) {
-  if (raw === null || raw === undefined) return 1;
+  if (raw === null || raw === undefined) return 4;
   if (typeof raw === 'number' && STATUS_LOOKUP[raw]) return raw;
   const str = String(raw).trim().toLowerCase();
-  if (str === '2' || str === 'accepted') return 2;
-  if (str === '3' || str === 'rejected') return 3;
-  if (str === '4' || str === 'waitlisted') return 4;
-  return 1;
+  if (str === '6' || str === 'rejected') return 6;
+  if (str === '7' || str === 'approved' || str === 'accepted') return 7;
+  // Legacy fallback & Pending/Waitlisted mapping -> 4
+  if (str === '1' || str === '4' || str === 'pending' || str === 'waitlisted' || str === 'waitlist') return 4;
+  if (str === '2') return 7; // Old Accepted ID → 7
+  if (str === '3') return 6; // old Rejected ID
+  return 4;
 }
 
 /** Inline status dropdown — updates in-place, no full grid reload */
@@ -413,7 +417,7 @@ export function StatusDropdownCell({ data, node, editable = false }) {
 
   // Read status directly from row data
   const statusNum = normalizeStatus(data?.status ?? data?.Status);
-  const cfg = STATUS_LOOKUP[statusNum] || STATUS_LOOKUP[1];
+  const cfg = STATUS_LOOKUP[statusNum] || STATUS_LOOKUP[4];
 
   if (!editable) {
     return <span style={{ color: cfg.color, fontWeight: 700, fontSize: 11 }}>{cfg.label}</span>;
@@ -479,10 +483,9 @@ export function StatusDropdownCell({ data, node, editable = false }) {
             minWidth: '112px',
           }}
         >
-          <option value={1} style={{ backgroundColor: '#ffffff', color: '#b45309', fontWeight: 600 }}>Pending</option>
-          <option value={2} style={{ backgroundColor: '#ffffff', color: '#047857', fontWeight: 600 }}>Accepted</option>
-          <option value={3} style={{ backgroundColor: '#ffffff', color: '#b91c1c', fontWeight: 600 }}>Rejected</option>
-          <option value={4} style={{ backgroundColor: '#ffffff', color: '#4338ca', fontWeight: 600 }}>Waitlisted</option>
+          <option value={4} style={{ backgroundColor: '#ffffff', color: '#b45309', fontWeight: 600 }}>Pending</option>
+          <option value={7} style={{ backgroundColor: '#ffffff', color: '#047857', fontWeight: 600 }}>Accepted</option>
+          <option value={6} style={{ backgroundColor: '#ffffff', color: '#b91c1c', fontWeight: 600 }}>Rejected</option>
         </select>
         <span
           style={{
