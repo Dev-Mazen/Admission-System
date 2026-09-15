@@ -94,6 +94,7 @@ public partial class SchoolAdmissionDbContext : DbContext
             entity.Property(e => e.SoftwareInterviewScore).HasColumnType("decimal(5, 2)");
             entity.Property(e => e.StatusId).HasDefaultValue(4L); // 4 = Pending in Status table (BusinessEntity='AdmissionProfile')
             entity.Property(e => e.ThirdPrepScore).HasColumnType("decimal(5, 2)");
+            entity.Property(e => e.Metadata).HasColumnType("NVARCHAR(MAX)");
 
             entity.HasOne(d => d.Account).WithOne(p => p.AdmissionProfile)
                 .HasForeignKey<AdmissionProfile>(d => d.AccountId)

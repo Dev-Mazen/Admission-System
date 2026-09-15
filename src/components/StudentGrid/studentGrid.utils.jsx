@@ -53,6 +53,45 @@ export function InterviewScoreActionCell({ data, context }) {
   );
 }
 
+/**
+ * SuperAdmin PDF Report button cell.
+ * Calls `onGenerateReport(student)` passed via gridContext.
+ */
+export function ReportActionCell({ data, context }) {
+  if (!data) return null;
+  const onGenerateReport = context?.onGenerateReport;
+  if (!onGenerateReport) return null;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onGenerateReport(data); }}
+        title="Generate & Print Single-Page Score Report PDF"
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#4f46e5',
+          background: 'rgba(79, 70, 229, 0.08)',
+          border: '1px solid rgba(79, 70, 229, 0.3)',
+          borderRadius: 6,
+          padding: '3px 10px',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'rgba(79, 70, 229, 0.18)';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'rgba(79, 70, 229, 0.08)';
+        }}
+      >
+        📄 PDF Report
+      </button>
+    </div>
+  );
+}
+
 // Note: Total % is calculated by the backend using the latest dbo.HUB_Settings row.
 // The frontend only displays the value sent by the server (TotalPercentage / totalPercentage).
 
@@ -639,7 +678,7 @@ function getFieldValue(data, ...keys) {
   return undefined;
 }
 
-export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewScoreAction = false, canEditStatus = false } = {}) {
+export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewScoreAction = false, showReportAction = false, canEditStatus = false } = {}) {
   return [
     // Checkbox selection column next to National ID — pinned left
     {
@@ -1014,6 +1053,19 @@ export function buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewSco
       suppressMovable: true,
       pinned:        'right',
       cellRenderer:  (p) => <InterviewScoreActionCell data={p.data} context={p.context} />,
+    }] : []),
+
+    // Report Action — only visible when showReportAction is true (SuperAdmin)
+    ...(showReportAction ? [{
+      colId:         'reportAction',
+      headerName:    'PDF Report',
+      width:         130,
+      sortable:      false,
+      filter:        false,
+      resizable:     false,
+      suppressMovable: true,
+      pinned:        'right',
+      cellRenderer:  (p) => <ReportActionCell data={p.data} context={p.context} />,
     }] : []),
   ];
 }

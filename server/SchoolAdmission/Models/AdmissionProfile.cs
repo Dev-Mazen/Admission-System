@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace SchoolAdmission.Models;
@@ -64,6 +64,8 @@ public partial class AdmissionProfile
     public string? PreferencesSheetPath { get; set; }
 
     public DateOnly? Created_At { get; set; }
+
+    public string? Metadata { get; set; }
 
     public virtual Account Account { get; set; } = null!;
 }

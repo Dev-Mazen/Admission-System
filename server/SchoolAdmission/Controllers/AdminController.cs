@@ -193,7 +193,7 @@ public class AdminController : ControllerBase
 
 
     [HttpPost("student/{studentId}/my-interview-score")]
-    public async Task<IActionResult> SetMyInterviewScore(long studentId, [FromBody] double scoreValue)
+    public async Task<IActionResult> SetMyInterviewScore(long studentId, [FromBody] SetInterviewScoreDTO dto)
     {
         try
         {
@@ -209,7 +209,7 @@ public class AdminController : ControllerBase
             if (!isInterviewer)
                 return Forbid("Only interviewers can set or edit their own interview score.");
 
-            await _adminRepo.SetInterviewScoreAsync(studentId, adminAccount.Id, scoreValue);
+            await _adminRepo.SetInterviewScoreAsync(studentId, adminAccount.Id, dto.Score, dto.InterviewLab);
 
             return Ok(ApiResponse.SuccessResult("Interview score submitted successfully."));
         }
@@ -226,6 +226,7 @@ public class AdminController : ControllerBase
             return StatusCode(500, ApiResponse.ErrorResult("An error occurred while submitting your interview score", ex.Message));
         }
     }
+
 
 
     [HttpPut("student/{studentId}/status")]

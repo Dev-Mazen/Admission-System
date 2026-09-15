@@ -11,7 +11,7 @@ public interface IAdminRepo
     Task<PaginationResponseDTO<dynamic>> GetStudentsForAdminPaginatedAsync(string adminEmail, PaginationRequestDTO request);
     Task<PaginationResponseDTO<dynamic>> GetStudentsForSuperAdminPaginatedAsync(string superAdminEmail, PaginationRequestDTO request);
     Task<List<Account>> FilterStudentsAsync(string? name, string? nationalId);
-    Task<bool> SetInterviewScoreAsync(long studentId, long adminId, double score);
+    Task<bool> SetInterviewScoreAsync(long studentId, long adminId, double score, int interviewLab = 1);
     Task<bool> UpdateStudentStatusAsync(long studentId, string status);
     Task<int> BulkUpdateStudentStatusAsync(List<long> studentIds, string status);
     Task<int> GetExamTotalAsync(StudentExamResult? examResults);

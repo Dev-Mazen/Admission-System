@@ -118,7 +118,8 @@ public class StudentController : ControllerBase
                 parentPhoneNumber = hasCompletedInfo ? account.AdmissionProfile?.ParentPhoneNumber : null,
                 email = account.Email,
 
-                previousSchoolType = hasCompletedInfo ? account.AdmissionProfile?.PreviousSchoolType : null
+                previousSchoolType = hasCompletedInfo ? account.AdmissionProfile?.PreviousSchoolType : null,
+                studentCode = JsonMetadataHelper.GetProperty(account.AdmissionProfile?.Metadata, "studentCode")
             });
         }
         catch (Exception ex)

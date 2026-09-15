@@ -14,8 +14,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Set EPPlus license context
 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
+// Set QuestPDF license context (Community Edition)
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 // Get configuration
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = builder.Configuration.GetConnectionString("LocalConnection");
 var jwtKeyValue = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("Jwt:Key configuration is required.");
 var jwtKey = Encoding.UTF8.GetBytes(jwtKeyValue);
@@ -32,6 +35,7 @@ builder.Services.AddScoped<IExamRepo, ExamRepo>();
 builder.Services.AddScoped<IStudentRepo, StudentRepo>();
 builder.Services.AddScoped<ISectionRepo, SectionRepo>();
 builder.Services.AddScoped<AdmissionSettingsService>();
+builder.Services.AddScoped<AdmissionReportPdfService>();
 
 // Simple CORS
 builder.Services.AddCors(options =>
@@ -40,25 +44,43 @@ builder.Services.AddCors(options =>
     {
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod();
+              .AllowAnyMethod()
+              .WithExposedHeaders("Content-Disposition");
     });
 });
 
-// Simple JWT Authentication
-builder.Services.AddAuthentication(options => { }).AddJwtBearer(options =>
+// JWT Authentication with query token support for PDF inline preview
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(jwtKey),
+        RoleClaimType = System.Security.Claims.ClaimTypes.Role
+    };
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
         {
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(jwtKey),
-            RoleClaimType = System.Security.Claims.ClaimTypes.Role
-        };
-    });
+            var accessToken = context.Request.Query["token"];
+            if (!string.IsNullOrEmpty(accessToken) &&
+                context.Request.Path.Value?.Contains("/report") == true)
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
+        }
+    };
+});
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();

@@ -1,11 +1,49 @@
 import { useState, useEffect, useCallback } from "react";
 import Button from "./ui/Button";
-import { studentAPI } from "../utils/api";
+import { studentAPI, adminAPI } from "../utils/api";
+import { currentConfig } from "../utils/config";
+import ReportConfigModal from "./ReportConfigModal";
 
 const StudentDetailsModal = ({ student, isOpen, onClose }) => {
   const [studentDetails, setStudentDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [reportError, setReportError] = useState("");
+  const [showReportModal, setShowReportModal] = useState(false);
+
+  const isSuperAdmin = Boolean(localStorage.getItem("adminToken"));
+
+  const handleGenerateReport = () => {
+    setShowReportModal(true);
+  };
+
+  const handleConfirmReportConfig = (options) => {
+    const targetId = student?.accountId || student?.id || student?.nationalId;
+    if (!targetId) return;
+
+    const studentName = student?.fullNameAr || student?.fullNameEn || student?.name || "Student";
+    const sanitizedName = studentName.replace(/[\/\\:*?"<>|]/g, "_").replace(/\s+/g, "_");
+    const filename = `${targetId}_${sanitizedName}_AdmissionReport.pdf`;
+
+    const token = localStorage.getItem("adminToken");
+    const queryParams = new URLSearchParams({
+      token: token || "",
+      showApplicantInfo: options.showApplicantInfo,
+      showStudentCode: options.showStudentCode,
+      showFinalScore: options.showFinalScore,
+      showFactorBreakdown: options.showFactorBreakdown,
+      showPreparatoryGrades: options.showPreparatoryGrades,
+      showSchoolExamBreakdown: options.showSchoolExamBreakdown,
+      showInterviewBreakdown: options.showInterviewBreakdown,
+      showCalculationFormula: options.showCalculationFormula,
+    }).toString();
+
+    const url = `${currentConfig.apiBaseUrl}/superadmin/students/${targetId}/report/${encodeURIComponent(filename)}?${queryParams}`;
+    window.open(url, "_blank");
+  };
+
+
 
   const loadStudentDetails = useCallback(async () => {
     if (!student?.nationalId) return;
@@ -109,6 +147,12 @@ const StudentDetailsModal = ({ student, isOpen, onClose }) => {
                       {studentDetails.dateOfBirth 
                         ? new Date(studentDetails.dateOfBirth).toLocaleDateString("en-GB")
                         : "Not specified"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-blue-700">Student Code</label>
+                    <p className="text-blue-900 font-medium font-mono">
+                      {studentDetails.studentCode || "Not specified"}
                     </p>
                   </div>
                   <div>
@@ -231,16 +275,50 @@ const StudentDetailsModal = ({ student, isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end p-6 border-t border-gray-200">
-          <Button
-            onClick={onClose}
-            variant="outline"
-            className="mr-3"
-          >
-            Close
-          </Button>
+        <div className="flex justify-between items-center p-6 border-t border-gray-200">
+          <div>
+            {reportError && (
+              <span className="text-sm text-red-600 font-medium">{reportError}</span>
+            )}
+          </div>
+          <div className="flex gap-3">
+            {isSuperAdmin && (
+              <Button
+                onClick={handleGenerateReport}
+                disabled={isGeneratingReport}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-2"
+              >
+                {isGeneratingReport ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Generating PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    <span>Print Score Report (PDF)</span>
+                  </>
+                )}
+              </Button>
+            )}
+            <Button
+              onClick={onClose}
+              variant="outline"
+            >
+              Close
+            </Button>
+          </div>
         </div>
       </div>
+
+      <ReportConfigModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        onGenerate={handleConfirmReportConfig}
+        studentName={studentDetails?.name || student?.fullName}
+      />
     </div>
   );
 };

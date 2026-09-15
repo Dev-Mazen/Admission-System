@@ -97,6 +97,7 @@ export default function StudentGrid({
   getExamMaximum,
   handleViewStudentDetails,
   onGiveScore,
+  onGenerateReport,
   canEditStatus = false,
   onBulkStatusChange,
   onSelectionChange,
@@ -181,9 +182,15 @@ export default function StudentGrid({
 
   // ── Column defs ───────────────────────────────────────────────────────────
   const columnDefs = useMemo(
-    () => buildColumnDefs({ getExamTotal, getExamMaximum, showInterviewScoreAction: !!onGiveScore, canEditStatus }),
+    () => buildColumnDefs({
+      getExamTotal,
+      getExamMaximum,
+      showInterviewScoreAction: !!onGiveScore,
+      showReportAction: !!onGenerateReport,
+      canEditStatus,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [!!onGiveScore, canEditStatus]
+    [!!onGiveScore, !!onGenerateReport, canEditStatus]
   );
 
   const defaultColDef = useMemo(() => ({
@@ -377,7 +384,7 @@ export default function StudentGrid({
             rowSelection="multiple"
             suppressRowClickSelection={true}
             // Context — passes callbacks into cell renderers
-            context={{ onGiveScore, onRefresh }}
+            context={{ onGiveScore, onRefresh, onGenerateReport }}
             // Callbacks
             onGridReady={onGridReady}
             onSelectionChanged={onSelectionChanged}

@@ -82,6 +82,13 @@ const AdminDashboardPage = () => {
 
   const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard' for list, 'charts' for stats
 
+  // Current interview lab selected by this interviewer (UI context only, default = Lab 1).
+  // This is NOT stored globally - it is only used when submitting a new interview.
+  const [currentLab, setCurrentLab] = useState(1);
+
+  // Hardcoded lab list (mirrors InterviewLabConstants.TotalInterviewLabs = 3 on the backend).
+  const INTERVIEW_LABS = [1, 2, 3];
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [showInterviewConfirmation, setShowInterviewConfirmation] =
@@ -250,6 +257,7 @@ const AdminDashboardPage = () => {
       oldScore: scoreModalStudent.interviewScore || 0,
       totalScore: Math.round(totalScore * 10) / 10,
       breakdown,
+      interviewLab: currentLab, // Capture the selected lab at submission time
     });
     closeScoreModal();
     setShowInterviewConfirmation(true);
@@ -262,7 +270,8 @@ const AdminDashboardPage = () => {
         setIsSubmitting(true);
         await adminAPI.setInterviewScore(
           pendingInterviewChange.studentId,
-          pendingInterviewChange.totalScore
+          pendingInterviewChange.totalScore,
+          pendingInterviewChange.interviewLab ?? 1
         );
 
         // Refresh data to get updated scores
@@ -353,29 +362,52 @@ const AdminDashboardPage = () => {
                 </p>
               )}
             </div>
-            <Button
-              variant="outline"
-              onClick={() => {
-                localStorage.removeItem("adminToken");
-                navigate("/admin/login");
-              }}
-              className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
-            >
-              <svg
-                className="h-4 w-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+
+            {/* Lab selector — stays selected while navigating between students */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-1.5">
+                <span className="text-xs font-semibold text-[#ef3131] whitespace-nowrap">
+                  Current Lab
+                </span>
+                <select
+                  id="interview-lab-selector"
+                  value={currentLab}
+                  onChange={(e) => setCurrentLab(Number(e.target.value))}
+                  className="text-sm font-bold text-gray-800 bg-transparent border-none outline-none cursor-pointer"
+                  aria-label="Select current interview lab"
+                >
+                  {INTERVIEW_LABS.map((lab) => (
+                    <option key={lab} value={lab}>
+                      Lab {lab}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <Button
+                variant="outline"
+                onClick={() => {
+                  localStorage.removeItem("adminToken");
+                  navigate("/admin/login");
+                }}
+                className="text-red-600 border-red-600 hover:bg-red-50 bg-transparent"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-              Logout
-            </Button>
+                <svg
+                  className="h-4 w-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
         <div className="bg-white">
@@ -820,6 +852,9 @@ const AdminDashboardPage = () => {
                   </div>
                   <div className="border-t border-dashed border-gray-300 pt-2 font-semibold text-blue-600">
                     Total Score: {pendingInterviewChange.totalScore}/40
+                  </div>
+                  <div className="border-t border-dashed border-gray-300 pt-2 text-sm text-gray-700">
+                    Interview Lab: <span className="font-semibold text-[#ef3131]">Lab {pendingInterviewChange.interviewLab ?? 1}</span>
                   </div>
                 </div>
               </div>

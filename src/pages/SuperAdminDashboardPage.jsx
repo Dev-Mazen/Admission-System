@@ -23,9 +23,11 @@ import {
 import { usePagination } from "../hooks/usePagination";
 import Pagination from "../components/ui/Pagination";
 import StudentAgGrid from "../components/StudentAgGrid";
+import ReportConfigModal from "../components/ReportConfigModal";
 import AdmissionSettingsPanel from "../components/AdmissionSettingsPanel";
 import { ArrowLeft, Settings } from "lucide-react";
 import { adminAPI } from "../utils/api";
+import { currentConfig } from "../utils/config";
 import {
   buildDashboardAnalytics,
   buildDashboardAverages,
@@ -278,6 +280,39 @@ const SuperAdminDashboardPage = () => {
       setError(message);
       throw err;
     }
+  };
+
+  const [reportModalStudent, setReportModalStudent] = useState(null);
+
+  const handleGenerateStudentReport = (studentData) => {
+    if (!studentData) return;
+    setReportModalStudent(studentData);
+  };
+
+  const handleConfirmReportConfig = (options) => {
+    if (!reportModalStudent) return;
+    const studentId = reportModalStudent.accountId || reportModalStudent.id || reportModalStudent.nationalId || reportModalStudent.SocialID;
+    if (!studentId) return;
+
+    const studentName = reportModalStudent.fullNameAr || reportModalStudent.fullNameEn || reportModalStudent.name || "Student";
+    const sanitizedName = studentName.replace(/[\/\\:*?"<>|]/g, "_").replace(/\s+/g, "_");
+    const filename = `${studentId}_${sanitizedName}_AdmissionReport.pdf`;
+
+    const token = localStorage.getItem("adminToken");
+    const queryParams = new URLSearchParams({
+      token: token || "",
+      showApplicantInfo: options.showApplicantInfo,
+      showStudentCode: options.showStudentCode,
+      showFinalScore: options.showFinalScore,
+      showFactorBreakdown: options.showFactorBreakdown,
+      showPreparatoryGrades: options.showPreparatoryGrades,
+      showSchoolExamBreakdown: options.showSchoolExamBreakdown,
+      showInterviewBreakdown: options.showInterviewBreakdown,
+      showCalculationFormula: options.showCalculationFormula,
+    }).toString();
+
+    const url = `${currentConfig.apiBaseUrl}/superadmin/students/${studentId}/report/${encodeURIComponent(filename)}?${queryParams}`;
+    window.open(url, "_blank");
   };
 
   const handleConfirmExport = async () => {
@@ -849,6 +884,7 @@ const SuperAdminDashboardPage = () => {
                   hasIqExamScore={hasIqExamScore}
                   canEditStatus={true}
                   onBulkStatusChange={handleBulkStatusChange}
+                  onGenerateReport={handleGenerateStudentReport}
                 />
               </CardContent>
             </Card>
@@ -1600,6 +1636,14 @@ const SuperAdminDashboardPage = () => {
           </div>
         </div>
       )}
+
+      {/* Report Options Selection Modal */}
+      <ReportConfigModal
+        isOpen={Boolean(reportModalStudent)}
+        onClose={() => setReportModalStudent(null)}
+        onGenerate={handleConfirmReportConfig}
+        studentName={reportModalStudent?.fullNameAr || reportModalStudent?.fullNameEn || reportModalStudent?.name}
+      />
     </div>
   );
 };

@@ -24,4 +24,5 @@ public class StudentAffairUpdateDTO
     public bool? HasOnlineTrainingCourses { get; set; }
     public bool? HasICDLLicense { get; set; }
     public bool? HasLaptop { get; set; }
+    public string? StudentCode { get; set; }
 }

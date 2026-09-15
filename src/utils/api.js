@@ -121,8 +121,8 @@ export const adminAPI = {
   filterStudents: (filters) =>
     api.get("/Admin/students/filter", { params: filters }),
 
-  setInterviewScore: (studentId, score) =>
-    api.post(`/Admin/student/${studentId}/my-interview-score`, score),
+  setInterviewScore: (studentId, score, interviewLab = 1) =>
+    api.post(`/Admin/student/${studentId}/my-interview-score`, { score, interviewLab }),
 
   updateStudentStatus: (studentId, status) =>
     api.put(`/Admin/student/${studentId}/status`, { Status: status }),
@@ -142,6 +142,11 @@ export const adminAPI = {
   getAdmissionSettings: () => api.get("/admin/settings"),
 
   saveAdmissionSettings: (settings) => api.post("/admin/settings", settings),
+
+  getStudentReportPdf: (studentId) =>
+    api.get(`/superadmin/students/${studentId}/report`, {
+      responseType: "blob",
+    }),
 };
 
 // Student Affair API

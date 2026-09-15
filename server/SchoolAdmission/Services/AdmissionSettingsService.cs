@@ -105,6 +105,27 @@ public class AdmissionSettingsService
         long accountId,
         StudentExamResult? result = null)
     {
+        result ??= await _db.StudentExamResults
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.AccountId == accountId);
+
+        if (result?.ExamStartedAtUtc != null)
+        {
+            var snapshot = await _db.HubSettings
+                .AsNoTracking()
+                .Where(s => s.CreatedAtUtc <= result.ExamStartedAtUtc.Value)
+                .OrderByDescending(s => s.VersionNumber)
+                .FirstOrDefaultAsync();
+
+            if (snapshot != null)
+                return snapshot;
+        }
+
+        if (result != null)
+        {
+            return GetHistoricalBaseline(result);
+        }
+
         return await GetActiveAsync();
     }
 

@@ -44,6 +44,7 @@ const StudentAffairEditPage = () => {
     hasOnlineTrainingCourses: null,
     hasICDLLicense: null,
     hasLaptop: null,
+    studentCode: "",
   });
 
   const [fieldErrors, setFieldErrors] = useState({});
@@ -82,6 +83,7 @@ const StudentAffairEditPage = () => {
       hasOnlineTrainingCourses: studentData.hasOnlineTrainingCourses,
       hasICDLLicense: studentData.hasICDLLicense,
       hasLaptop: studentData.hasLaptop,
+      studentCode: studentData.studentCode || "",
     });
   }, [location.state, navigate]);
 
@@ -225,6 +227,9 @@ const StudentAffairEditPage = () => {
       }
       if (formData.hasLaptop !== null) {
         updateData.hasLaptop = formData.hasLaptop;
+      }
+      if (formData.studentCode !== undefined) {
+        updateData.studentCode = formData.studentCode;
       }
 
       await studentAffairAPI.updateStudent(nationalId, updateData);
@@ -499,6 +504,26 @@ const StudentAffairEditPage = () => {
                           {fieldErrors.studentNameAr}
                         </p>
                       )}
+                    </div>
+
+                    <div>
+                      <Label
+                        htmlFor="studentCode"
+                        className="text-base font-medium text-blue-700"
+                      >
+                        Student Code (Optional)
+                      </Label>
+                      <Input
+                        id="studentCode"
+                        type="text"
+                        value={formData.studentCode}
+                        onChange={(e) =>
+                          handleInputChange("studentCode", e.target.value)
+                        }
+                        placeholder="e.g. ST-2026-00125"
+                        className="mt-2 h-12 text-lg font-mono"
+                        maxLength={50}
+                      />
                     </div>
 
                     <div>

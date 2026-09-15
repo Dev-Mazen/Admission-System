@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using SchoolAdmission.Services;
 using SchoolAdmission.DTOs;
+using SchoolAdmission.Models;
 using Microsoft.AspNetCore.Authorization;
 using SchoolAdmission.Repos.IRepos;
 
@@ -51,7 +52,8 @@ public class StudentAffairController : ControllerBase
                 previousSchoolType = student.AdmissionProfile?.PreviousSchoolType,
                 hasOnlineTrainingCourses = student.AdmissionProfile?.HasOnlineTrainingCourses,
                 hasICDLLicense = student.AdmissionProfile?.HasIcdllicense,
-                hasLaptop = student.AdmissionProfile?.HasLaptop
+                hasLaptop = student.AdmissionProfile?.HasLaptop,
+                studentCode = JsonMetadataHelper.GetProperty(student.AdmissionProfile?.Metadata, "studentCode")
             };
 
             return Ok(studentData);
@@ -169,6 +171,13 @@ public class StudentAffairController : ControllerBase
                     student.AdmissionProfile.HasIcdllicense = dto.HasICDLLicense.Value;
                 if (dto.HasLaptop.HasValue)
                     student.AdmissionProfile.HasLaptop = dto.HasLaptop.Value;
+                if (dto.StudentCode != null)
+                {
+                    student.AdmissionProfile.Metadata = JsonMetadataHelper.MergeProperty(
+                        student.AdmissionProfile.Metadata,
+                        "studentCode",
+                        string.IsNullOrWhiteSpace(dto.StudentCode) ? null : dto.StudentCode.Trim());
+                }
             }
 
             await _studentRepo.SaveChangesAsync();
